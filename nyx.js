@@ -177,6 +177,17 @@ function debouncedSavePlan(day, blocks) { clearTimeout(_planTimer); _planTimer =
 let isSignUp = false;
 let appStarted = false;
 
+function friendlyError(error) {
+  const msg = error.message || '';
+  if (/invalid login/i.test(msg))       return 'wrong email or password';
+  if (/email not confirmed/i.test(msg)) return 'check your email to confirm your account';
+  if (/already registered/i.test(msg))  return 'email already in use — try signing in';
+  if (/password.*6/i.test(msg))         return 'password must be at least 6 characters';
+  if (/invalid email/i.test(msg))       return 'invalid email address';
+  if (/rate limit/i.test(msg))          return 'too many attempts — wait a moment';
+  return msg || 'something went wrong';
+}
+
 function showAuth() {
   document.getElementById('authOverlay').style.display = 'flex';
   document.getElementById('nyxWrapper').style.display  = 'none';
@@ -210,14 +221,15 @@ async function authSubmit() {
   try {
     if (isSignUp) {
       const { error } = await sb.auth.signUp({ email, password });
-      if (error) { errEl.textContent = error.message; }
+      if (error) { console.error('signup error:', error); errEl.textContent = friendlyError(error); }
       else { errEl.style.color = 'rgba(140,255,170,0.9)'; errEl.textContent = 'check your email to confirm'; }
     } else {
       const { error } = await sb.auth.signInWithPassword({ email, password });
-      if (error) errEl.textContent = error.message;
+      if (error) { console.error('signin error:', error); errEl.textContent = friendlyError(error); }
     }
   } catch(e) {
-    errEl.textContent = 'something went wrong';
+    console.error('auth error:', e);
+    errEl.textContent = 'something went wrong — check console';
   } finally {
     btn.textContent = isSignUp ? 'SIGN UP' : 'SIGN IN';
     btn.disabled = false;
@@ -644,11 +656,12 @@ document.addEventListener('DOMContentLoaded', () => {
   loadPX();
 
   sb.auth.onAuthStateChange(async (event, session) => {
-    const prevId = currentUser?.id;
     currentUser = session?.user || null;
 
-    if (currentUser && currentUser.id !== prevId) {
-      await Promise.all([loadHoldings(), loadBudgetData(), loadPlanData(todayKey())]);
+    if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && currentUser) {
+      try {
+        await Promise.all([loadHoldings(), loadBudgetData(), loadPlanData(todayKey())]);
+      } catch(e) { console.error('data load failed:', e); }
       hideAuth();
       renderPortfolio();
       renderInvest();
@@ -659,7 +672,8 @@ document.addEventListener('DOMContentLoaded', () => {
         setInterval(fetchAll, 5 * 60 * 1000);
         appStarted = true;
       }
-    } else if (!currentUser) {
+    } else if (event === 'SIGNED_OUT' || (event === 'INITIAL_SESSION' && !currentUser)) {
+      appStarted = false;
       showAuth();
     }
   });
