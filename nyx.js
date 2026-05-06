@@ -224,8 +224,17 @@ async function authSubmit() {
       if (error) { console.error('signup error:', error); errEl.textContent = friendlyError(error); }
       else { errEl.style.color = 'rgba(140,255,170,0.9)'; errEl.textContent = 'check your email to confirm'; }
     } else {
-      const { error } = await sb.auth.signInWithPassword({ email, password });
-      if (error) { console.error('signin error:', error); errEl.textContent = friendlyError(error); }
+      const { data, error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) {
+        console.error('signin error:', error);
+        errEl.textContent = friendlyError(error);
+      } else {
+        currentUser = data.user;
+        try { await Promise.all([loadHoldings(), loadBudgetData(), loadPlanData(todayKey())]); } catch(e) { console.error('data load:', e); }
+        hideAuth();
+        renderPortfolio(); renderInvest(); renderBudget(); renderPlanner();
+        if (!appStarted) { fetchAll(); setInterval(fetchAll, 5 * 60 * 1000); appStarted = true; }
+      }
     }
   } catch(e) {
     console.error('auth error:', e);
@@ -656,12 +665,14 @@ document.addEventListener('DOMContentLoaded', () => {
   loadPX();
 
   sb.auth.onAuthStateChange(async (event, session) => {
+    console.log('[NYX] auth event:', event, '| user:', session?.user?.email || null);
     currentUser = session?.user || null;
 
     if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && currentUser) {
       try {
         await Promise.all([loadHoldings(), loadBudgetData(), loadPlanData(todayKey())]);
-      } catch(e) { console.error('data load failed:', e); }
+      } catch(e) { console.error('[NYX] data load failed:', e); }
+      console.log('[NYX] calling hideAuth');
       hideAuth();
       renderPortfolio();
       renderInvest();
