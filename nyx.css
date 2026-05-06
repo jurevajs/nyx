@@ -636,6 +636,68 @@ input[type=range]::-moz-range-thumb {
 /* ── SCROLLBAR ── */
 ::-webkit-scrollbar { width: 0; height: 0; }
 
+/* ── AUTH ── */
+.auth-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.auth-win {
+  width: min(360px, 88vw);
+}
+.auth-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.auth-input {
+  width: 100%;
+  background: rgba(255,255,255,0.04);
+  border: 0.5px solid var(--border-hi);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 300;
+  padding: 10px 14px;
+  outline: none;
+  letter-spacing: 0.02em;
+  transition: border-color 0.2s, background 0.2s;
+}
+.auth-input:focus { border-color: rgba(255,255,255,0.28); background: rgba(255,255,255,0.06); }
+.auth-input::placeholder { color: var(--text-faint); }
+.auth-submit { width: 100%; padding: 11px; margin-top: 4px; }
+.auth-error {
+  font-size: 10px;
+  color: var(--dn);
+  letter-spacing: 0.05em;
+  min-height: 14px;
+}
+.auth-toggle {
+  text-align: center;
+  font-size: 10px;
+  color: var(--text-faint);
+  cursor: pointer;
+  letter-spacing: 0.08em;
+  transition: color 0.2s;
+  padding-top: 2px;
+}
+.auth-toggle:hover { color: var(--text-dim); }
+
+/* ── TITLEBAR SIGN OUT ── */
+.signout-btn {
+  margin-left: auto;
+  font-size: 9px;
+  color: var(--text-faint);
+  cursor: pointer;
+  letter-spacing: 0.1em;
+  transition: color 0.2s;
+}
+.signout-btn:hover { color: var(--text-dim); }
+
 /* ── RESPONSIVE ── */
 @media (max-width: 600px) {
   .tab-btn { padding: 6px 12px; font-size: 9px; }

@@ -17,7 +17,29 @@
 </div>
 <div class="bg-byline">nyx, 2026</div>
 
-<div class="nyx-wrapper">
+<!-- AUTH SCREEN -->
+<div class="auth-overlay" id="authOverlay">
+  <div class="win auth-win">
+    <div class="titlebar">
+      <div class="dot dot-r"></div>
+      <div class="dot dot-y"></div>
+      <div class="dot dot-g"></div>
+      <div class="win-title" id="authWinTitle">SIGN IN</div>
+    </div>
+    <div class="body auth-body">
+      <input type="email" id="authEmail" class="auth-input" placeholder="email" autocomplete="email">
+      <input type="password" id="authPassword" class="auth-input" placeholder="password" autocomplete="current-password">
+      <div class="auth-error" id="authError"></div>
+      <button class="btn primary auth-submit" id="authSubmitBtn" onclick="authSubmit()">SIGN IN</button>
+      <div class="auth-toggle" onclick="toggleAuthMode()">
+        <span id="authToggleText">no account? sign up</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div class="nyx-wrapper" id="nyxWrapper" style="display:none">
 
   <nav class="tab-nav">
     <button class="tab-btn active" data-tab="portfolio" onclick="switchTab('portfolio')">Portfolio</button>
@@ -32,6 +54,7 @@
       <div class="dot dot-y"></div>
       <div class="dot dot-g"></div>
       <div class="win-title" id="winTitle">PORTFOLIO</div>
+      <div class="signout-btn" onclick="signOut()">sign out</div>
     </div>
     <div class="body">
 
@@ -205,6 +228,7 @@
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="nyx.js"></script>
 </body>
 </html>
