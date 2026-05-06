@@ -705,8 +705,10 @@ input[type=range]::-moz-range-thumb {
   .tab-nav {
     position: fixed;
     bottom: calc(14px + env(safe-area-inset-bottom));
-    left: 50%;
-    transform: translateX(-50%);
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    width: fit-content;
     z-index: 100;
     white-space: nowrap;
   }
