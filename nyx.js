@@ -247,6 +247,9 @@ async function authSubmit() {
 
 async function signOut() {
   await sb.auth.signOut();
+  AS.forEach(a => { a.qty = 0; a.buy = 0; });
+  budget = { paycheck: 0, rent: 30, invest: 20, fun: 20 };
+  planBlocks = [];
 }
 
 // ── TAB NAVIGATION ────────────────────────────────────────────
