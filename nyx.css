@@ -432,7 +432,7 @@ body::before {
 
 /* ── BUDGET ── */
 .paycheck-row {
-  display: flex; gap: 8px; align-items: stretch; margin-bottom: 20px;
+  display: flex; flex-direction: column; gap: 8px; align-items: flex-start; margin-bottom: 20px;
 }
 .paycheck-input {
   flex: 1;
@@ -639,9 +639,7 @@ input[type=range]::-moz-range-thumb {
   .tab-btn { padding: 6px 12px; font-size: 9px; }
   .win-main { height: calc(100svh - 90px); }
   .body { padding: 14px 16px 18px; }
-  .paycheck-row { flex-direction: column; align-items: flex-start; }
-  .paycheck-btn { font-size: 8px; padding: 8px 14px; letter-spacing: 0.1em; width: auto; }
-  .paycheck-input { width: 100%; }
+  .paycheck-btn { font-size: 8px; padding: 8px 14px; letter-spacing: 0.1em; }
   .budget-sliders { gap: 10px; }
   .budget-remaining { margin-top: 12px; padding-top: 10px; }
   .divider { margin: 14px 0; }
