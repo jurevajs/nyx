@@ -669,20 +669,16 @@ document.addEventListener('DOMContentLoaded', () => {
     currentUser = session?.user || null;
 
     if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && currentUser) {
-      try {
-        await Promise.all([loadHoldings(), loadBudgetData(), loadPlanData(todayKey())]);
-      } catch(e) { console.error('[NYX] data load failed:', e); }
-      console.log('[NYX] calling hideAuth');
       hideAuth();
-      renderPortfolio();
-      renderInvest();
-      renderBudget();
-      renderPlanner();
+      renderPortfolio(); renderInvest(); renderBudget(); renderPlanner();
       if (!appStarted) {
         fetchAll();
         setInterval(fetchAll, 5 * 60 * 1000);
         appStarted = true;
       }
+      Promise.all([loadHoldings(), loadBudgetData(), loadPlanData(todayKey())])
+        .then(() => { renderPortfolio(); renderBudget(); renderPlanner(); })
+        .catch(e => console.error('[NYX] data load failed:', e));
     } else if (event === 'SIGNED_OUT' || (event === 'INITIAL_SESSION' && !currentUser)) {
       appStarted = false;
       showAuth();
