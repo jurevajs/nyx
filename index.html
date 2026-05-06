@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NYX</title>
+<link rel="stylesheet" href="nyx.css">
+</head>
+<body>
+
+<div class="noise"></div>
+
+<div class="bg-brand">
+  <div class="bg-nyx"></div>
+</div>
+<div class="bg-byline">nyx, 2026</div>
+
+<div class="nyx-wrapper">
+
+  <nav class="tab-nav">
+    <button class="tab-btn active" data-tab="portfolio" onclick="switchTab('portfolio')">Portfolio</button>
+    <button class="tab-btn" data-tab="invest" onclick="switchTab('invest')">Invest</button>
+    <button class="tab-btn" data-tab="budget" onclick="switchTab('budget')">Budget</button>
+    <button class="tab-btn" data-tab="planner" onclick="switchTab('planner')">Planner</button>
+  </nav>
+
+  <div class="win win-main">
+    <div class="titlebar">
+      <div class="dot dot-r"></div>
+      <div class="dot dot-y"></div>
+      <div class="dot dot-g"></div>
+      <div class="win-title" id="winTitle">PORTFOLIO</div>
+    </div>
+    <div class="body">
+
+      <!-- TAB: PORTFOLIO -->
+      <div class="tab-pane active" id="tab-portfolio">
+        <div class="label">TOTAL</div>
+        <div class="total-val" id="total">€ —</div>
+        <div class="total-ch fl" id="totalChange">—</div>
+
+        <div class="divider"></div>
+
+        <div id="assetList"></div>
+
+        <div class="statusbar">
+          <div class="status-l">
+            <div class="pulse"></div>
+            <span id="statusTxt">initializing</span>
+          </div>
+          <div class="status-r" onclick="fetchAll()">refresh</div>
+        </div>
+      </div>
+
+      <!-- TAB: INVEST -->
+      <div class="tab-pane" id="tab-invest">
+
+        <div class="invest-prices">
+          <div class="invest-price-card">
+            <div class="ipc-name">ETHEREUM</div>
+            <div class="ipc-val" id="ethPrice">—</div>
+            <div class="ipc-ch" id="ethCh">—</div>
+            <div class="ipc-chart" id="ethChart"></div>
+            <div class="chart-switches">
+              <button class="chart-btn active" data-asset="eth" data-range="1h" onclick="setChartRange('eth','1h')">1H</button>
+              <button class="chart-btn" data-asset="eth" data-range="24h" onclick="setChartRange('eth','24h')">24H</button>
+              <button class="chart-btn" data-asset="eth" data-range="7d" onclick="setChartRange('eth','7d')">7D</button>
+            </div>
+          </div>
+          <div class="invest-price-sep"></div>
+          <div class="invest-price-card">
+            <div class="ipc-name">VWCE</div>
+            <div class="ipc-val" id="vwcePrice">—</div>
+            <div class="ipc-ch" id="vwceCh">—</div>
+            <div class="ipc-chart" id="vwceChart"></div>
+            <div class="chart-switches">
+              <button class="chart-btn active" data-asset="vwce" data-range="1h" onclick="setChartRange('vwce','1h')">1H</button>
+              <button class="chart-btn" data-asset="vwce" data-range="24h" onclick="setChartRange('vwce','24h')">24H</button>
+              <button class="chart-btn" data-asset="vwce" data-range="7d" onclick="setChartRange('vwce','7d')">7D</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="label">ETH SIGNAL</div>
+        <div class="invest-signal">
+          <div class="signal-verdict" id="signalVerdict">READING</div>
+          <div class="signal-note" id="signalNote">Analyzing 7-day trend and volatility…</div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="label">SENTIMENT</div>
+        <div class="fg-block">
+          <div class="fg-val" id="fgVal">—</div>
+          <div class="fg-right">
+            <div class="fg-label" id="fgLabel">loading…</div>
+            <div class="fg-bar"><div class="fg-fill" id="fgFill" style="width:0%"></div></div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="label">ETH NEWS</div>
+        <div class="news-block" id="newsBlock">
+          <div class="news-loading">loading…</div>
+        </div>
+
+      </div>
+
+      <!-- TAB: BUDGET -->
+      <div class="tab-pane" id="tab-budget">
+        <div class="label">PAYCHECK</div>
+        <div class="paycheck-row">
+          <input class="paycheck-input" type="number" id="paycheckInput"
+            placeholder="0.00"
+            onchange="setPaycheck()"
+            oninput="setPaycheck()">
+          <button class="paycheck-btn" onclick="setPaycheck()">SET PAYCHECK</button>
+        </div>
+
+        <div class="label" style="margin-bottom: 8px;">ALLOCATE</div>
+        <div class="budget-sliders">
+
+          <div class="b-row">
+            <div class="b-label-row">
+              <div class="b-cat">RENT &amp; BILLS</div>
+              <div class="b-amt" id="amt_rent">0%</div>
+            </div>
+            <input type="range" id="slider_rent" min="0" max="80" value="0" step="1"
+              oninput="updateSliderAmt('rent')">
+          </div>
+
+          <div class="b-row">
+            <div class="b-label-row">
+              <div class="b-cat">INVESTING</div>
+              <div class="b-amt" id="amt_invest">0%</div>
+            </div>
+            <input type="range" id="slider_invest" min="0" max="60" value="0" step="1"
+              oninput="updateSliderAmt('invest')">
+          </div>
+
+          <div class="b-row">
+            <div class="b-label-row">
+              <div class="b-cat">FUN &amp; FOOD</div>
+              <div class="b-amt" id="amt_fun">0%</div>
+            </div>
+            <input type="range" id="slider_fun" min="0" max="60" value="0" step="1"
+              oninput="updateSliderAmt('fun')">
+          </div>
+
+        </div>
+
+        <div class="budget-remaining">
+          <div class="b-rem-label">REMAINING</div>
+          <div class="b-rem-val" id="budgetRemaining">€ —</div>
+        </div>
+      </div>
+
+      <!-- TAB: PLANNER -->
+      <div class="tab-pane" id="tab-planner">
+        <div class="date-display">
+          <div class="date-big" id="dateBig">—</div>
+          <div class="date-day" id="dateDay">—</div>
+        </div>
+
+        <div class="divider" style="margin-top: 16px;"></div>
+
+        <div class="time-blocks" id="timeBlocks"></div>
+
+        <button class="add-block-btn" onclick="addBlock()">+ add block</button>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- PORTFOLIO EDIT MODAL -->
+<div class="overlay" id="ov">
+  <div class="modal">
+    <div class="modal-title" id="mTitle">EDIT</div>
+    <div class="field">
+      <label>UNITS HELD</label>
+      <input type="number" id="eQty" step="any" min="0" placeholder="0">
+    </div>
+    <div class="field">
+      <label>AVG BUY PRICE (€)</label>
+      <input type="number" id="eBuy" step="any" min="0" placeholder="0">
+      <div class="hint">optional — for P/L tracking</div>
+    </div>
+    <div class="field" id="mManField" style="display:none">
+      <label>PRICE PER UNIT (€)</label>
+      <input type="number" id="eMan" step="any" min="0" placeholder="1.00">
+      <div class="hint">manual — update from fund factsheet</div>
+    </div>
+    <input type="hidden" id="eId">
+    <div class="modal-btns">
+      <button class="btn" onclick="closeM()">cancel</button>
+      <button class="btn primary" onclick="saveH()">save</button>
+    </div>
+  </div>
+</div>
+
+<script src="nyx.js"></script>
+</body>
+</html>
