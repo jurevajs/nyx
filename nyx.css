@@ -637,10 +637,16 @@ input[type=range]::-moz-range-thumb {
 /* ── RESPONSIVE ── */
 @media (max-width: 600px) {
   .tab-btn { padding: 6px 12px; font-size: 9px; }
-  .win-main { height: min(600px, 78vh); }
-  .body { padding: 16px 18px 20px; }
+  .win-main { height: calc(100svh - 90px); }
+  .body { padding: 14px 16px 18px; }
+  .paycheck-btn { font-size: 8px; padding: 0 10px; letter-spacing: 0.1em; }
+  .budget-sliders { gap: 10px; }
+  .budget-remaining { margin-top: 12px; padding-top: 10px; }
+  .divider { margin: 14px 0; }
+  .total-val { font-size: 28px; }
+  .statusbar { margin-top: 14px; }
 }
 
 @media (max-height: 680px) {
-  .win-main { height: calc(100vh - 80px); }
+  .win-main { height: calc(100svh - 80px); }
 }
