@@ -680,7 +680,8 @@ input[type=range]::-moz-range-thumb {
 
 /* ── RESPONSIVE ── */
 @media (max-width: 600px) {
-  .nyx-wrapper { padding-top: 12px; gap: 0; justify-content: flex-start; }
+  body { align-items: flex-start; }
+  .nyx-wrapper { padding-top: 44px; gap: 0; justify-content: flex-start; }
 
   .tab-nav {
     position: fixed;
@@ -695,7 +696,7 @@ input[type=range]::-moz-range-thumb {
   .tab-btn { padding: 7px 16px; font-size: 9px; }
   .overlay { padding-bottom: calc(80px + env(safe-area-inset-bottom)); }
   .bg-byline { bottom: auto; top: 14px; }
-  .win-main { height: calc(100svh - 120px); }
+  .win-main { height: calc(100svh - 44px - 80px); }
   .body { padding: 14px 16px 18px; }
   .budget-sliders { gap: 10px; }
   .budget-remaining { margin-top: 12px; padding-top: 10px; }
