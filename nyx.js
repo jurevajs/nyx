@@ -83,12 +83,12 @@ const CATALOG = [
   { id:'dot',  name:'Polkadot',         sub:'DOT',                cat:'crypto', src:'cg', cgId:'polkadot'      },
   { id:'link', name:'Chainlink',        sub:'LINK',               cat:'crypto', src:'cg', cgId:'chainlink'     },
   { id:'pol',  name:'Polygon',          sub:'POL',                cat:'crypto', src:'cg', cgId:'matic-network' },
-  // ETFs
-  { id:'vwce', name:'VWCE',             sub:'FTSE All-World',     cat:'etf',   src:'yahoo',  yahoo:'VWCE.DE'  },
-  { id:'cspx', name:'CSPX',             sub:'S&P 500',            cat:'etf',   src:'yahoo',  yahoo:'CSPX.L'   },
-  { id:'iwda', name:'IWDA',             sub:'MSCI World',         cat:'etf',   src:'yahoo',  yahoo:'IWDA.AS'  },
-  // Stocks
-  { id:'krkg', name:'Krka d.d.',        sub:'KRKG.LJ',            cat:'stock', src:'stooq',  stooq:'krkg.lj'  },
+  // ETFs — prices via GitHub Actions → data/funds.json (Stooq EOD)
+  { id:'vwce', name:'VWCE',             sub:'FTSE All-World',     cat:'etf',   src:'fund' },
+  { id:'cspx', name:'CSPX',             sub:'S&P 500',            cat:'etf',   src:'fund' },
+  { id:'iwda', name:'IWDA',             sub:'MSCI World',         cat:'etf',   src:'fund' },
+  // Stocks — prices via GitHub Actions → data/funds.json (Stooq EOD)
+  { id:'krkg', name:'Krka d.d.',        sub:'KRKG.LJ',            cat:'stock', src:'fund' },
   // Slovenian mutual funds — prices via GitHub Actions → data/funds.json
   { id:'tri',  name:'Triglav DMT EUR',  sub:'Triglav Investments', cat:'fund', src:'fund' },
   { id:'inf',  name:'Infond Globalni',  sub:'Infond',              cat:'fund', src:'fund' },
@@ -101,11 +101,9 @@ let AS = []; // user's active portfolio — built from CATALOG + Supabase holdin
 
 let PX = {};
 let investSignals = {};
-let chartRanges = { eth: '1h', vwce: '1h' };
+let chartRanges = { eth: '1h', vwce: '7d' };
 let chartSeries  = { eth: {}, vwce: {} };
-let vwceDailyHistory = [];
-let budget = { paycheck: 0, rent: 30, invest: 20, fun: 20 };
-let planBlocks = [];
+let FUND_HISTORY = {};
 
 // ── STORAGE ──────────────────────────────────────────────────
 async function saveHoldings() {
@@ -168,46 +166,6 @@ async function removeAsset(id) {
   }
 }
 
-async function saveBudget(obj) {
-  if (!currentUser) return;
-  await sb.from('budget').upsert({
-    user_id:     currentUser.id,
-    paycheck:    obj.paycheck   || 0,
-    rent_pct:    obj.rent       || 0,
-    invest_pct:  obj.invest     || 0,
-    fun_pct:     obj.fun        || 0,
-  }, { onConflict: 'user_id' });
-}
-
-async function loadBudgetData() {
-  if (!currentUser) return;
-  const { data } = await sb.from('budget').select('*').eq('user_id', currentUser.id).maybeSingle();
-  if (data) budget = { paycheck: data.paycheck || 0, rent: data.rent_pct || 0, invest: data.invest_pct || 0, fun: data.fun_pct || 0 };
-}
-
-async function savePlan(day, blocks) {
-  if (!currentUser) return;
-  await sb.from('planner_blocks').delete().eq('user_id', currentUser.id).eq('date', day);
-  if (blocks.length) {
-    await sb.from('planner_blocks').insert(blocks.map(b => ({
-      user_id:    currentUser.id,
-      date:       day,
-      time_label: (b.from || '') + '|' + (b.to || ''),
-      note:       b.text || '',
-    })));
-  }
-}
-
-async function loadPlanData(day) {
-  if (!currentUser) return;
-  const { data } = await sb.from('planner_blocks')
-    .select('*').eq('user_id', currentUser.id).eq('date', day).order('created_at');
-  if (data) planBlocks = data.map(row => {
-    const parts = (row.time_label || '|').split('|');
-    return { from: parts[0] || '', to: parts[1] || '', text: row.note || '' };
-  });
-}
-
 function savePX() { localStorage.setItem('nyx_px', JSON.stringify(PX)); }
 function loadPX() {
   try {
@@ -215,10 +173,6 @@ function loadPX() {
     Object.entries(c).forEach(([k, v]) => { if (v && typeof v.p === 'number') PX[k] = v; });
   } catch(e) {}
 }
-
-let _budgetTimer, _planTimer;
-function debouncedSaveBudget(obj) { clearTimeout(_budgetTimer); _budgetTimer = setTimeout(() => saveBudget(obj), 800); }
-function debouncedSavePlan(day, blocks) { clearTimeout(_planTimer); _planTimer = setTimeout(() => savePlan(day, blocks), 800); }
 
 // ── AUTH ─────────────────────────────────────────────────────
 let isSignUp = false;
@@ -277,9 +231,9 @@ async function authSubmit() {
         errEl.textContent = friendlyError(error);
       } else {
         currentUser = data.user;
-        try { await Promise.all([loadHoldings(), loadBudgetData(), loadPlanData(todayKey())]); } catch(e) { console.error('data load:', e); }
+        try { await loadHoldings(); } catch(e) { console.error('data load:', e); }
         hideAuth();
-        renderPortfolio(); renderInvest(); renderBudget(); renderPlanner();
+        renderPortfolio(); renderInvest();
         if (!appStarted) { fetchAll(); setInterval(fetchAll, 5 * 60 * 1000); appStarted = true; }
       }
     }
@@ -301,7 +255,7 @@ async function signOut() {
 }
 
 // ── TAB NAVIGATION ────────────────────────────────────────────
-const TAB_TITLES = { portfolio: 'PORTFOLIO', invest: 'INVEST', budget: 'BUDGET', planner: 'DAILY PLANNER' };
+const TAB_TITLES = { portfolio: 'PORTFOLIO', invest: 'INVEST' };
 
 function switchTab(id) {
   document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
@@ -332,28 +286,6 @@ async function fetchCoinGecko() {
   } catch(e) { console.warn('coingecko', e); }
 }
 
-function getYahooAssets() {
-  // Portfolio Yahoo assets + always VWCE for the Invest tab
-  const map = new Map(AS.filter(a => a.src === 'yahoo').map(a => [a.id, a]));
-  const vwce = CATALOG.find(c => c.id === 'vwce');
-  if (vwce) map.set('vwce', vwce);
-  return [...map.values()];
-}
-
-async function fetchYahoo(a) {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${a.yahoo}?interval=1d&range=5d`;
-  try {
-    const d = await fetchWithProxy(url, 'json');
-    const result = d?.chart?.result?.[0];
-    const meta   = result?.meta;
-    if (!meta) return;
-    const price = meta.regularMarketPrice, prev = meta.previousClose ?? meta.chartPreviousClose;
-    if (price && !isNaN(price)) PX[a.id] = { p: price, ch: prev ? (price - prev) / prev * 100 : 0 };
-    const closes = (result?.indicators?.quote?.[0]?.close || []).map(v => Number(v)).filter(v => Number.isFinite(v));
-    if (a.id === 'vwce' && closes.length) vwceDailyHistory = closes;
-  } catch(e) { console.warn('yahoo', a.yahoo, e); }
-}
-
 async function fetchBinanceSeries(interval, limit) {
   try {
     const r = await fetch(`https://api.binance.com/api/v3/klines?symbol=ETHEUR&interval=${interval}&limit=${limit}`);
@@ -363,42 +295,15 @@ async function fetchBinanceSeries(interval, limit) {
   } catch(e) { return []; }
 }
 
-async function fetchYahooSeries(symbol, range, interval, limit = 0) {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?range=${range}&interval=${interval}`;
-  try {
-    const d = await fetchWithProxy(url, 'json');
-    const closes = (d?.chart?.result?.[0]?.indicators?.quote?.[0]?.close || []).map(v => Number(v)).filter(v => Number.isFinite(v));
-    return limit > 0 ? closes.slice(-limit) : closes;
-  } catch(e) { return []; }
-}
-
 async function fetchChartSeries() {
-  const [eth1h, eth24h, eth7d, vwce1h, vwce24h, vwce7d] = await Promise.all([
+  const [eth1h, eth24h, eth7d] = await Promise.all([
     fetchBinanceSeries('1m', 60),
     fetchBinanceSeries('1h', 24),
     fetchBinanceSeries('1h', 168),
-    fetchYahooSeries('VWCE.DE', '1d',  '1m', 60),
-    fetchYahooSeries('VWCE.DE', '5d',  '1h', 24),
-    fetchYahooSeries('VWCE.DE', '1mo', '1d', 7),
   ]);
-  chartSeries.eth  = { '1h': eth1h,  '24h': eth24h,  '7d': eth7d  };
-  chartSeries.vwce = { '1h': vwce1h, '24h': vwce24h, '7d': vwce7d };
-  if (!chartSeries.vwce['7d']?.length  && vwceDailyHistory.length) chartSeries.vwce['7d']  = vwceDailyHistory.slice(-7);
-  if (!chartSeries.vwce['1h']?.length)  chartSeries.vwce['1h']  = chartSeries.vwce['24h'] || chartSeries.vwce['7d'] || [];
-  if (!chartSeries.vwce['24h']?.length) chartSeries.vwce['24h'] = chartSeries.vwce['7d']  || chartSeries.vwce['1h'] || [];
-}
-
-async function fetchStooq(a) {
-  const url = `https://stooq.com/q/d/l/?s=${a.stooq}&i=d`;
-  try {
-    const txt = await fetchWithProxy(url, 'text');
-    const lines = txt.trim().split('\n');
-    if (lines.length < 2) return;
-    const last = lines[lines.length - 1].split(',');
-    const prev = lines.length > 2 ? lines[lines.length - 2].split(',') : null;
-    const close = parseFloat(last[4]), prevClose = prev ? parseFloat(prev[4]) : close;
-    if (!isNaN(close)) PX[a.id] = { p: close, ch: prevClose ? ((close - prevClose) / prevClose * 100) : 0 };
-  } catch(e) { console.warn('stooq', a.id, e); }
+  chartSeries.eth  = { '1h': eth1h, '24h': eth24h, '7d': eth7d };
+  const hist = FUND_HISTORY.vwce || [];
+  chartSeries.vwce = { '7d': hist.slice(-7), '30d': hist.slice(-30) };
 }
 
 async function fetchFundsJson() {
@@ -410,11 +315,16 @@ async function fetchFundsJson() {
     Object.entries(d.prices).forEach(([id, px]) => {
       if (px && typeof px.p === 'number') PX[id] = px;
     });
+    if (d.history) {
+      Object.entries(d.history).forEach(([id, hist]) => {
+        if (Array.isArray(hist)) FUND_HISTORY[id] = hist;
+      });
+    }
     const age = Date.now() - new Date(d.updated).getTime();
     const ageStr = age < 3600000 ? Math.round(age / 60000) + 'm ago'
                  : age < 86400000 ? Math.round(age / 3600000) + 'h ago'
                  : Math.round(age / 86400000) + 'd ago';
-    console.log(`[NYX] fund prices updated ${ageStr}`);
+    console.log(`[NYX] prices updated ${ageStr}`);
   } catch(e) { console.warn('fund json', e); }
 }
 
@@ -527,11 +437,9 @@ function renderSparkline(elId, series) {
 
 async function fetchAll() {
   setStatus('fetching...');
+  await fetchFundsJson(); // must run first — chart series reads FUND_HISTORY.vwce
   await Promise.allSettled([
     fetchCoinGecko(),
-    ...getYahooAssets().map(a => fetchYahoo(a)),
-    ...AS.filter(a => a.src === 'stooq').map(a => fetchStooq(a)),
-    fetchFundsJson(),
     fetchChartSeries(),
     fetchInvestSignal(),
     fetchFearGreed(),
@@ -554,30 +462,6 @@ function fe(v, d=2) { return '€ ' + Number(v||0).toLocaleString('de-DE', {mini
 function fp(v)      { return (v>=0?'+':'')+Number(v||0).toFixed(2)+'%'; }
 function fn(v, d=4) { return Number(v||0).toLocaleString('de-DE', {maximumFractionDigits:d}); }
 function setStatus(t) { const el = document.getElementById('statusTxt'); if (el) el.textContent = t; }
-
-const PROXY_CACHE = new Map();
-const PROXY_CACHE_TTL = 10 * 60 * 1000;
-
-async function fetchWithProxy(url, responseType = 'text') {
-  const cacheKey = `${responseType}:${url}`;
-  const cached = PROXY_CACHE.get(cacheKey);
-  if (cached && (Date.now() - cached.ts) < PROXY_CACHE_TTL) return cached.value;
-  const proxies = [
-    `https://corsproxy.io/?${encodeURIComponent(url)}`,
-    `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
-    `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-  ];
-  for (const proxyUrl of proxies) {
-    try {
-      const r = await fetch(proxyUrl);
-      if (!r.ok) continue;
-      const value = responseType === 'json' ? await r.json() : await r.text();
-      PROXY_CACHE.set(cacheKey, { ts: Date.now(), value });
-      return value;
-    } catch(e) {}
-  }
-  throw new Error(`All proxies failed for ${url}`);
-}
 
 // ── PORTFOLIO ────────────────────────────────────────────────
 function renderPortfolio() {
@@ -627,78 +511,6 @@ function renderInvest() {
   renderSparkline('ethChart', chartSeries.eth[chartRanges.eth]);
   renderSparkline('vwceChart', chartSeries.vwce[chartRanges.vwce]);
   renderFearGreed(); renderEthNews();
-}
-
-// ── BUDGET ───────────────────────────────────────────────────
-function renderBudget() {
-  const pEl = document.getElementById('paycheckInput');
-  if (pEl) pEl.value = budget.paycheck || '';
-  ['rent', 'invest', 'fun'].forEach(cat => {
-    const slider = document.getElementById(`slider_${cat}`);
-    if (slider) slider.value = budget[cat] || 0;
-    updateSliderAmt(cat);
-  });
-  updateRemaining();
-}
-
-function updateSliderAmt(cat) {
-  const slider = document.getElementById(`slider_${cat}`), amtEl = document.getElementById(`amt_${cat}`);
-  if (!slider || !amtEl) return;
-  const pct = parseFloat(slider.value) || 0;
-  const pay = parseFloat(document.getElementById('paycheckInput')?.value) || 0;
-  budget[cat] = pct;
-  amtEl.textContent = pay > 0 ? `${pct}%  ·  ${fe(pay * pct / 100, 0)}` : `${pct}%`;
-  updateRemaining();
-}
-
-function updateRemaining() {
-  const pay = parseFloat(document.getElementById('paycheckInput')?.value) || 0;
-  const used = ['rent', 'invest', 'fun'].reduce((s, c) => s + (budget[c] || 0), 0);
-  const rem = pay * (100 - used) / 100;
-  const el = document.getElementById('budgetRemaining');
-  if (el) { el.textContent = fe(rem, 0); el.className = 'b-rem-val' + (rem < 0 ? ' over' : ''); }
-  debouncedSaveBudget(budget);
-}
-
-function setPaycheck() {
-  budget.paycheck = parseFloat(document.getElementById('paycheckInput')?.value) || 0;
-  ['rent', 'invest', 'fun'].forEach(c => updateSliderAmt(c));
-  updateRemaining();
-}
-
-// ── PLANNER ──────────────────────────────────────────────────
-function todayKey() { return new Date().toISOString().slice(0, 10); }
-function formatDate(d) { return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }); }
-function formatDay(d)  { return d.toLocaleDateString('en-GB', { weekday: 'long' }).toUpperCase(); }
-function escAttr(v)    { return String(v || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
-
-function renderPlanner() {
-  const now = new Date();
-  const dEl = document.getElementById('dateBig'), dyEl = document.getElementById('dateDay');
-  if (dEl) dEl.textContent = formatDate(now);
-  if (dyEl) dyEl.textContent = formatDay(now);
-  const container = document.getElementById('timeBlocks'); if (!container) return;
-  container.innerHTML = planBlocks.map((b, i) => `
-    <div class="time-block" id="tb_${i}">
-      <input class="tb-input tb-time-input" type="text" placeholder="FROM" value="${escAttr(b.from)}"
-        onchange="updateBlock(${i},'from',this.value)" oninput="updateBlock(${i},'from',this.value)">
-      <input class="tb-input tb-time-input" type="text" placeholder="TO" value="${escAttr(b.to)}"
-        onchange="updateBlock(${i},'to',this.value)" oninput="updateBlock(${i},'to',this.value)">
-      <input class="tb-input tb-desc-input" type="text" placeholder="DESCRIPTION" value="${escAttr(b.text)}"
-        onchange="updateBlock(${i},'text',this.value)" oninput="updateBlock(${i},'text',this.value)">
-    </div>
-  `).join('');
-}
-
-function updateBlock(i, key, val) {
-  planBlocks[i][key] = val;
-  debouncedSavePlan(todayKey(), planBlocks);
-}
-
-function addBlock() {
-  planBlocks.push({ from: '', to: '', text: '' });
-  debouncedSavePlan(todayKey(), planBlocks);
-  renderPlanner();
 }
 
 // ── ADD ASSET PICKER ─────────────────────────────────────────
@@ -781,14 +593,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && currentUser) {
       hideAuth();
-      renderPortfolio(); renderInvest(); renderBudget(); renderPlanner();
+      renderPortfolio(); renderInvest();
       if (!appStarted) {
         fetchAll();
         setInterval(fetchAll, 5 * 60 * 1000);
         appStarted = true;
       }
-      Promise.all([loadHoldings(), loadBudgetData(), loadPlanData(todayKey())])
-        .then(() => { renderPortfolio(); renderBudget(); renderPlanner(); })
+      loadHoldings()
+        .then(() => renderPortfolio())
         .catch(e => console.error('[NYX] data load failed:', e));
     } else if (event === 'SIGNED_OUT' || (event === 'INITIAL_SESSION' && !currentUser)) {
       appStarted = false;

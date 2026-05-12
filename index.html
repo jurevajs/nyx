@@ -41,8 +41,6 @@
   <nav class="tab-nav">
     <button class="tab-btn active" data-tab="portfolio" onclick="switchTab('portfolio')">Portfolio</button>
     <button class="tab-btn" data-tab="invest" onclick="switchTab('invest')">Invest</button>
-    <button class="tab-btn" data-tab="budget" onclick="switchTab('budget')">Budget</button>
-    <button class="tab-btn" data-tab="planner" onclick="switchTab('planner')">Planner</button>
   </nav>
 
   <div class="win win-main">
@@ -98,9 +96,8 @@
             <div class="ipc-ch" id="vwceCh">—</div>
             <div class="ipc-chart" id="vwceChart"></div>
             <div class="chart-switches">
-              <button class="chart-btn active" data-asset="vwce" data-range="1h" onclick="setChartRange('vwce','1h')">1H</button>
-              <button class="chart-btn" data-asset="vwce" data-range="24h" onclick="setChartRange('vwce','24h')">24H</button>
-              <button class="chart-btn" data-asset="vwce" data-range="7d" onclick="setChartRange('vwce','7d')">7D</button>
+              <button class="chart-btn active" data-asset="vwce" data-range="7d" onclick="setChartRange('vwce','7d')">7D</button>
+              <button class="chart-btn" data-asset="vwce" data-range="30d" onclick="setChartRange('vwce','30d')">30D</button>
             </div>
           </div>
         </div>
@@ -131,69 +128,6 @@
           <div class="news-loading">loading…</div>
         </div>
 
-      </div>
-
-      <!-- TAB: BUDGET -->
-      <div class="tab-pane" id="tab-budget">
-        <div class="label">PAYCHECK</div>
-        <div class="paycheck-row">
-          <input class="paycheck-input" type="number" id="paycheckInput"
-            placeholder="0.00"
-            onchange="setPaycheck()"
-            oninput="setPaycheck()">
-          <button class="paycheck-btn" onclick="setPaycheck()">SET PAYCHECK</button>
-        </div>
-
-        <div class="label" style="margin-bottom: 8px;">ALLOCATE</div>
-        <div class="budget-sliders">
-
-          <div class="b-row">
-            <div class="b-label-row">
-              <div class="b-cat">RENT &amp; BILLS</div>
-              <div class="b-amt" id="amt_rent">0%</div>
-            </div>
-            <input type="range" id="slider_rent" min="0" max="80" value="0" step="1"
-              oninput="updateSliderAmt('rent')">
-          </div>
-
-          <div class="b-row">
-            <div class="b-label-row">
-              <div class="b-cat">INVESTING</div>
-              <div class="b-amt" id="amt_invest">0%</div>
-            </div>
-            <input type="range" id="slider_invest" min="0" max="60" value="0" step="1"
-              oninput="updateSliderAmt('invest')">
-          </div>
-
-          <div class="b-row">
-            <div class="b-label-row">
-              <div class="b-cat">FUN &amp; FOOD</div>
-              <div class="b-amt" id="amt_fun">0%</div>
-            </div>
-            <input type="range" id="slider_fun" min="0" max="60" value="0" step="1"
-              oninput="updateSliderAmt('fun')">
-          </div>
-
-        </div>
-
-        <div class="budget-remaining">
-          <div class="b-rem-label">REMAINING</div>
-          <div class="b-rem-val" id="budgetRemaining">€ —</div>
-        </div>
-      </div>
-
-      <!-- TAB: PLANNER -->
-      <div class="tab-pane" id="tab-planner">
-        <div class="date-display">
-          <div class="date-big" id="dateBig">—</div>
-          <div class="date-day" id="dateDay">—</div>
-        </div>
-
-        <div class="divider" style="margin-top: 16px;"></div>
-
-        <div class="time-blocks" id="timeBlocks"></div>
-
-        <button class="add-block-btn" onclick="addBlock()">+ add block</button>
       </div>
 
     </div>
