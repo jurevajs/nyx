@@ -1,68 +1,3 @@
-/* ═══════════════════════════════════════════
-   NYX — core logic
-   ═══════════════════════════════════════════ */
-
-// ── BACKGROUND ────────────────────────────────────────────────
-(function initBg() {
-  const canvas = document.getElementById('bgCanvas');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  let w, h;
-
-  let mx = 0.5, tx = 0.5;
-
-  const STARS = Array.from({ length: 70 }, (_, i) => ({
-    x: (Math.sin(i * 127.31) * 0.5 + 0.5),
-    y: (Math.sin(i * 311.71) * 0.5 + 0.5) * 0.46,
-    r: (Math.sin(i * 89.13)  * 0.5 + 0.5) * 0.85 + 0.18,
-    a: (Math.sin(i * 241.93) * 0.5 + 0.5) * 0.32 + 0.07,
-  }));
-
-  const LAYERS = [
-    { yFrac: 0.54, amp: 0.21, par: 0.006, fill: 'rgba(42,42,42,0.97)', freq: [[1.3,0.4,0.50],[2.4,1.9,0.30],[4.2,3.3,0.16],[0.7,0.8,0.40]] },
-    { yFrac: 0.60, amp: 0.28, par: 0.014, fill: 'rgba(24,24,24,1)',    freq: [[1.0,1.6,0.55],[2.2,0.3,0.37],[3.8,3.0,0.21],[1.5,2.3,0.28]] },
-    { yFrac: 0.66, amp: 0.36, par: 0.024, fill: 'rgba(13,13,13,1)',    freq: [[0.8,2.9,0.63],[1.8,1.2,0.41],[3.4,0.6,0.27],[5.1,4.3,0.13]] },
-    { yFrac: 0.73, amp: 0.45, par: 0.038, fill: 'rgba(3,3,3,1)',       freq: [[0.6,3.6,0.70],[1.4,2.1,0.47],[2.7,1.4,0.31],[4.3,0.9,0.17]] },
-  ];
-
-  function profileY(xn, freqs) {
-    let v = 0;
-    freqs.forEach(([f, ph, a]) => { v += Math.max(0, Math.sin(xn * Math.PI * f + ph)) * a; });
-    return v;
-  }
-
-  function drawLayer(layer, parallaxX) {
-    const baseY = h * layer.yFrac, amp = h * layer.amp, ox = parallaxX * layer.par * w;
-    ctx.save(); ctx.translate(ox, 0); ctx.beginPath(); ctx.moveTo(-250, h + 10);
-    for (let px = -250; px <= w + 250; px += 2) {
-      const xn = (px + 250) / (w + 500);
-      ctx.lineTo(px, baseY - profileY(xn, layer.freq) * amp);
-    }
-    ctx.lineTo(w + 250, h + 10); ctx.closePath(); ctx.fillStyle = layer.fill; ctx.fill(); ctx.restore();
-  }
-
-  function frame() {
-    tx += (mx - tx) * 0.045;
-    const px = tx - 0.5;
-    const sky = ctx.createLinearGradient(0, 0, 0, h);
-    sky.addColorStop(0, '#030303'); sky.addColorStop(0.40, '#0b0b0b');
-    sky.addColorStop(0.60, '#131313'); sky.addColorStop(1, '#1a1a1a');
-    ctx.fillStyle = sky; ctx.fillRect(0, 0, w, h);
-    const gx = w * (0.62 + px * 0.04), gy = h * 0.38;
-    const glow = ctx.createRadialGradient(gx, gy, 0, gx, gy, w * 0.55);
-    glow.addColorStop(0, 'rgba(255,255,255,0.07)'); glow.addColorStop(0.45, 'rgba(255,255,255,0.018)'); glow.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = glow; ctx.fillRect(0, 0, w, h);
-    STARS.forEach(s => { ctx.beginPath(); ctx.arc(s.x * w + px * 0.004 * w, s.y * h, s.r, 0, Math.PI * 2); ctx.fillStyle = `rgba(255,255,255,${s.a})`; ctx.fill(); });
-    LAYERS.forEach(layer => drawLayer(layer, px));
-    requestAnimationFrame(frame);
-  }
-
-  function resize() { w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; }
-  document.addEventListener('mousemove', e => { mx = e.clientX / window.innerWidth; });
-  window.addEventListener('resize', resize);
-  resize(); frame();
-})();
-
 // ── SUPABASE ──────────────────────────────────────────────────
 const sb = supabase.createClient(
   'https://nkfmpnscfzqjozuutokc.supabase.co',
@@ -251,8 +186,6 @@ async function signOut() {
   await sb.auth.signOut();
   AS.length = 0;
   PX = {};
-  budget = { paycheck: 0, rent: 30, invest: 20, fun: 20 };
-  planBlocks = [];
 }
 
 // ── TAB NAVIGATION ────────────────────────────────────────────

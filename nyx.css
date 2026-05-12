@@ -32,16 +32,6 @@ body {
   overflow: hidden;
 }
 
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  /*background: url('background2.jpg') center center / cover no-repeat;*/
-  background-color: #000000;
-  z-index: 0;
-  pointer-events: none;
-}
-
 /* ── BYLINE ── */
 .bg-byline {
   position: fixed;
@@ -178,19 +168,11 @@ body::before {
   text-transform: uppercase;
   margin-bottom: 6px;
 }
-.big {
-  font-size: 32px;
-  color: var(--text);
-  font-weight: 300;
-  letter-spacing: -0.02em;
-  line-height: 1;
-}
 .divider {
   height: 0.5px;
   background: linear-gradient(90deg, transparent, rgba(255,255,255,0.07) 20%, rgba(255,255,255,0.07) 80%, transparent);
   margin: 20px 0;
 }
-.row-dim { font-size: 10px; color: var(--text-dim); margin-top: 3px; letter-spacing: 0.05em; }
 
 /* ── STATUSBAR ── */
 .statusbar {
@@ -356,16 +338,6 @@ body::before {
   transition: width 0.8s cubic-bezier(0.16,1,0.3,1), background 0.5s;
 }
 
-/* ── MARKET STATS ── */
-.market-block {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px 20px;
-  margin-top: 10px;
-}
-.mkt-label { font-size: 9px; color: var(--text-faint); letter-spacing: 0.12em; }
-.mkt-val   { font-size: 12px; color: var(--text); margin-top: 3px; letter-spacing: 0.03em; }
-
 /* ── ETH NEWS ── */
 .news-block {
   display: flex;
@@ -397,146 +369,7 @@ body::before {
   animation: blink 1.4s step-end infinite;
 }
 
-.assets-mini { margin-top: 16px; }
-.asset-mini {
-  display: grid;
-  grid-template-columns: 1fr 80px 70px;
-  padding: 7px 0;
-  border-bottom: 0.5px solid var(--border);
-  align-items: center;
-}
-.asset-mini:last-child { border-bottom: none; }
-.am-name  { font-size: 10px; color: var(--text-dim); letter-spacing: 0.04em; }
-.am-price { font-size: 10px; color: rgba(255,255,255,0.45); text-align: right; }
-.am-ch    { font-size: 10px; text-align: right; }
-
-/* ── BUDGET ── */
-.paycheck-row {
-  display: flex; flex-direction: row; gap: 8px; align-items: stretch; margin-bottom: 20px;
-}
-.paycheck-input {
-  width: 120px;
-  flex: 0 0 120px;
-  background: rgba(255,255,255,0.04);
-  border: 0.5px solid var(--border-hi);
-  border-radius: 6px;
-  color: var(--text);
-  font-family: var(--mono);
-  font-size: 18px;
-  font-weight: 300;
-  padding: 10px 14px;
-  outline: none;
-  letter-spacing: 0.02em;
-  transition: border-color 0.2s, background 0.2s;
-}
-.paycheck-input:focus {
-  border-color: rgba(255,255,255,0.28);
-  background: rgba(255,255,255,0.06);
-}
-.paycheck-input::placeholder { color: var(--text-faint); }
-.paycheck-btn {
-  flex: 1;
-  background: rgba(255,255,255,0.04);
-  border: 0.5px solid var(--border-hi);
-  border-radius: 6px;
-  color: var(--text-dim);
-  font-family: var(--mono);
-  font-size: 9px;
-  letter-spacing: 0.12em;
-  padding: 0 10px;
-  cursor: pointer;
-  transition: all 0.2s;
-  white-space: nowrap;
-}
-.paycheck-btn:hover {
-  border-color: rgba(255,255,255,0.28);
-  background: rgba(255,255,255,0.08);
-  color: var(--text);
-}
-
-.budget-sliders { display: flex; flex-direction: column; gap: 14px; }
-.b-label-row  { display: flex; justify-content: space-between; margin-bottom: 5px; }
-.b-cat        { font-size: 10px; color: var(--text-dim); letter-spacing: 0.1em; }
-.b-amt        { font-size: 10px; color: var(--text); }
-
-input[type=range] {
-  -webkit-appearance: none; appearance: none;
-  width: 100%; height: 1.5px;
-  background: rgba(255,255,255,0.1);
-  outline: none; cursor: pointer;
-  border-radius: 2px;
-}
-input[type=range]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 13px; height: 13px;
-  border-radius: 50%;
-  background: #fff;
-  cursor: pointer;
-  border: none;
-  box-shadow: 0 0 0 3px rgba(255,255,255,0.07), 0 1px 6px rgba(0,0,0,0.6);
-  transition: box-shadow 0.15s;
-}
-input[type=range]::-webkit-slider-thumb:hover {
-  box-shadow: 0 0 0 4px rgba(255,255,255,0.12), 0 1px 6px rgba(0,0,0,0.6);
-}
-input[type=range]::-moz-range-thumb {
-  width: 13px; height: 13px;
-  border-radius: 50%;
-  background: #fff;
-  cursor: pointer;
-  border: none;
-  box-shadow: 0 0 0 3px rgba(255,255,255,0.07), 0 1px 6px rgba(0,0,0,0.6);
-}
-
-.budget-remaining {
-  margin-top: 18px;
-  padding-top: 14px;
-  border-top: 0.5px solid var(--border);
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-}
-.b-rem-label { font-size: 9px; color: var(--text-faint); letter-spacing: 0.2em; }
-.b-rem-val   { font-size: 20px; color: var(--text); font-weight: 300; }
-.b-rem-val.over { color: rgba(255,80,80,0.85); }
-
-/* ── PLANNER ── */
-.date-display { margin-bottom: 20px; }
-.date-big { font-size: 28px; color: var(--text); font-weight: 300; letter-spacing: -0.01em; }
-.date-day { font-size: 10px; color: var(--text-faint); letter-spacing: 0.2em; margin-top: 4px; }
-
-.time-blocks { display: flex; flex-direction: column; gap: 3px; max-height: 320px; overflow-y: auto; }
-.time-block {
-  display: grid;
-  grid-template-columns: 72px 72px 1fr;
-  gap: 8px;
-  align-items: center;
-  padding: 8px 0;
-  border-bottom: 0.5px solid var(--border);
-  transition: opacity 0.1s;
-}
-.time-block:last-child { border-bottom: none; }
-.tb-input {
-  background: rgba(255,255,255,0.03);
-  border: 0.5px solid rgba(255,255,255,0.08);
-  border-radius: 5px;
-  color: var(--text);
-  font-family: var(--mono);
-  font-size: 11px;
-  outline: none;
-  width: 100%;
-  letter-spacing: 0.04em;
-  padding: 6px 8px;
-  transition: border-color 0.15s, background 0.15s;
-}
-.tb-input::placeholder { color: rgba(255,255,255,0.1); }
-.tb-input:focus {
-  border-color: rgba(255,255,255,0.2);
-  background: rgba(255,255,255,0.05);
-}
-.tb-time-input { text-align: center; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; }
-.tb-desc-input { text-align: left; }
-
+/* ── ADD ASSET BUTTON ── */
 .add-block-btn {
   margin-top: 12px;
   background: rgba(255,255,255,0.03);
@@ -754,8 +587,6 @@ input[type=range]::-moz-range-thumb {
   .bg-byline { display: none; }
   .win-main { height: calc(100svh - 55px - 80px); }
   .body { padding: 14px 16px 18px; }
-  .budget-sliders { gap: 10px; }
-  .budget-remaining { margin-top: 12px; padding-top: 10px; }
   .divider { margin: 14px 0; }
   .total-val { font-size: 28px; }
   .statusbar { margin-top: 14px; }
