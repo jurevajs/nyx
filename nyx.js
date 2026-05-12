@@ -143,6 +143,7 @@ async function addAsset(id) {
   AS.push(asset);
   closeAddAsset();
   renderPortfolio();
+  if (template.src === 'cg') fetchCoinGecko().then(renderPortfolio);
   if (currentUser) {
     await sb.from('holdings').upsert({
       user_id:      currentUser.id,
