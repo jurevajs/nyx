@@ -65,6 +65,8 @@
 
         <div id="assetList"></div>
 
+        <button class="add-block-btn" onclick="openAddAsset()">+ add asset</button>
+
         <div class="statusbar">
           <div class="status-l">
             <div class="pulse"></div>
@@ -199,6 +201,19 @@
 
 </div>
 
+<!-- ADD ASSET PICKER -->
+<div class="overlay" id="addOv">
+  <div class="modal add-asset-modal">
+    <div class="modal-title">ADD ASSET</div>
+    <input type="text" class="auth-input add-asset-search" id="assetSearch"
+           placeholder="search…" oninput="renderAssetCatalog(this.value)" autocomplete="off">
+    <div class="add-asset-list" id="catalogList"></div>
+    <div class="modal-btns" style="margin-top:14px">
+      <button class="btn" onclick="closeAddAsset()">close</button>
+    </div>
+  </div>
+</div>
+
 <!-- PORTFOLIO EDIT MODAL -->
 <div class="overlay" id="ov">
   <div class="modal">
@@ -219,6 +234,7 @@
     </div>
     <input type="hidden" id="eId">
     <div class="modal-btns">
+      <button class="btn danger" id="removeAssetBtn" onclick="removeAsset(document.getElementById('eId').value)">remove</button>
       <button class="btn" onclick="closeM()">cancel</button>
       <button class="btn primary" onclick="saveH()">save</button>
     </div>

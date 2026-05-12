@@ -70,20 +70,34 @@ const sb = supabase.createClient(
 );
 let currentUser = null;
 
-// ── DATA ─────────────────────────────────────────────────────
-const AS = [
-  { id:'eth',  name:'Ethereum',         sub:'ETH',            cat:'crypto', symbol:'ETHEUR',   src:'binance' },
-  { id:'link', name:'Chainlink',        sub:'LINK',           cat:'crypto', symbol:'LINKEUR',  src:'binance' },
-  { id:'vwce', name:'VWCE',             sub:'FTSE All-World', cat:'etf',    yahoo:'VWCE.DE',   src:'yahoo'   },
-  { id:'krkg', name:'Krka',             sub:'KRKG.LJ',        cat:'stock',  stooq:'krkg.lj',   src:'stooq'   },
-  { id:'tri',  name:'Triglav DMT EUR',  sub:'mutual fund',    cat:'fund',   src:'triglav',
-    fundKey:'TRIGLAV SKLAD DENARNEGA TRGA EUR', fundUrl:'https://tecajnica.triglavinvestments.si/' },
-  { id:'inf',  name:'Infond Globalni',  sub:'mutual fund',    cat:'fund',   src:'infond',
-    fundKey:'INFOND GLOBALNI URAVNOTEŽENI', fundUrl:'https://www.infond.si/tecajnica-vzajemnih-skladov' },
-  { id:'cash', name:'Savings',          sub:'EUR',            cat:'cash',   src:'manual', manual:1 },
-  { id:'chk',  name:'Checking',         sub:'EUR',            cat:'cash',   src:'manual', manual:1 },
+// ── CATALOG ───────────────────────────────────────────────────
+const CATALOG = [
+  // Crypto — prices via CoinGecko EUR
+  { id:'btc',  name:'Bitcoin',          sub:'BTC',                cat:'crypto', src:'cg', cgId:'bitcoin'       },
+  { id:'eth',  name:'Ethereum',         sub:'ETH',                cat:'crypto', src:'cg', cgId:'ethereum'      },
+  { id:'sol',  name:'Solana',           sub:'SOL',                cat:'crypto', src:'cg', cgId:'solana'        },
+  { id:'bnb',  name:'BNB',              sub:'BNB',                cat:'crypto', src:'cg', cgId:'binancecoin'   },
+  { id:'xrp',  name:'XRP',              sub:'XRP',                cat:'crypto', src:'cg', cgId:'ripple'        },
+  { id:'ada',  name:'Cardano',          sub:'ADA',                cat:'crypto', src:'cg', cgId:'cardano'       },
+  { id:'avax', name:'Avalanche',        sub:'AVAX',               cat:'crypto', src:'cg', cgId:'avalanche-2'   },
+  { id:'dot',  name:'Polkadot',         sub:'DOT',                cat:'crypto', src:'cg', cgId:'polkadot'      },
+  { id:'link', name:'Chainlink',        sub:'LINK',               cat:'crypto', src:'cg', cgId:'chainlink'     },
+  { id:'pol',  name:'Polygon',          sub:'POL',                cat:'crypto', src:'cg', cgId:'matic-network' },
+  // ETFs
+  { id:'vwce', name:'VWCE',             sub:'FTSE All-World',     cat:'etf',   src:'yahoo',  yahoo:'VWCE.DE'  },
+  { id:'cspx', name:'CSPX',             sub:'S&P 500',            cat:'etf',   src:'yahoo',  yahoo:'CSPX.L'   },
+  { id:'iwda', name:'IWDA',             sub:'MSCI World',         cat:'etf',   src:'yahoo',  yahoo:'IWDA.AS'  },
+  // Stocks
+  { id:'krkg', name:'Krka d.d.',        sub:'KRKG.LJ',            cat:'stock', src:'stooq',  stooq:'krkg.lj'  },
+  // Slovenian mutual funds — prices via GitHub Actions → data/funds.json
+  { id:'tri',  name:'Triglav DMT EUR',  sub:'Triglav Investments', cat:'fund', src:'fund' },
+  { id:'inf',  name:'Infond Globalni',  sub:'Infond',              cat:'fund', src:'fund' },
+  // Cash (manual price, always €1)
+  { id:'cash', name:'Savings',          sub:'EUR',                cat:'cash',  src:'manual', manual:1 },
+  { id:'chk',  name:'Checking',         sub:'EUR',                cat:'cash',  src:'manual', manual:1 },
 ];
-AS.forEach(a => { a.qty = 0; a.buy = 0; });
+
+let AS = []; // user's active portfolio — built from CATALOG + Supabase holdings
 
 let PX = {};
 let investSignals = {};
@@ -95,7 +109,7 @@ let planBlocks = [];
 
 // ── STORAGE ──────────────────────────────────────────────────
 async function saveHoldings() {
-  if (!currentUser) return;
+  if (!currentUser || !AS.length) return;
   await sb.from('holdings').upsert(
     AS.map(a => ({
       user_id:      currentUser.id,
@@ -111,14 +125,47 @@ async function saveHoldings() {
 async function loadHoldings() {
   if (!currentUser) return;
   const { data } = await sb.from('holdings').select('*').eq('user_id', currentUser.id);
-  if (data) data.forEach(row => {
-    const a = AS.find(x => x.id === row.asset_id);
-    if (a) {
-      a.qty = row.qty || 0;
-      a.buy = row.buy_price || 0;
-      if (row.manual_price != null) a.manual = row.manual_price;
-    }
+  if (!data) return;
+  AS.length = 0;
+  data.forEach(row => {
+    const template = CATALOG.find(c => c.id === row.asset_id);
+    if (!template) return;
+    const asset = { ...template, qty: row.qty || 0, buy: row.buy_price || 0 };
+    if (row.manual_price != null) asset.manual = row.manual_price;
+    AS.push(asset);
   });
+}
+
+async function addAsset(id) {
+  if (AS.find(a => a.id === id)) { closeAddAsset(); return; }
+  const template = CATALOG.find(c => c.id === id);
+  if (!template) return;
+  const asset = { ...template, qty: 0, buy: 0 };
+  if (template.src === 'manual') { asset.manual = 1; PX[id] = { p: 1, ch: 0 }; }
+  AS.push(asset);
+  closeAddAsset();
+  renderPortfolio();
+  if (currentUser) {
+    await sb.from('holdings').upsert({
+      user_id:      currentUser.id,
+      asset_id:     id,
+      qty:          0,
+      buy_price:    0,
+      manual_price: template.src === 'manual' ? 1 : null,
+    }, { onConflict: 'user_id,asset_id' });
+  }
+}
+
+async function removeAsset(id) {
+  const idx = AS.findIndex(a => a.id === id);
+  if (idx < 0) return;
+  AS.splice(idx, 1);
+  delete PX[id];
+  closeM();
+  renderPortfolio();
+  if (currentUser) {
+    await sb.from('holdings').delete().eq('user_id', currentUser.id).eq('asset_id', id);
+  }
 }
 
 async function saveBudget(obj) {
@@ -247,7 +294,8 @@ async function authSubmit() {
 
 async function signOut() {
   await sb.auth.signOut();
-  AS.forEach(a => { a.qty = 0; a.buy = 0; });
+  AS.length = 0;
+  PX = {};
   budget = { paycheck: 0, rent: 30, invest: 20, fun: 20 };
   planBlocks = [];
 }
@@ -264,19 +312,32 @@ function switchTab(id) {
 }
 
 // ── PRICE FETCH ──────────────────────────────────────────────
-async function fetchBinance() {
-  const symbols = AS.filter(a => a.src === 'binance').map(a => a.symbol);
+async function fetchCoinGecko() {
+  // Portfolio crypto + always ETH for the Invest tab
+  const needed = new Map();
+  CATALOG.filter(c => c.src === 'cg').forEach(c => {
+    if (AS.find(a => a.id === c.id) || c.id === 'eth') needed.set(c.cgId, c.id);
+  });
+  if (!needed.size) return;
   try {
-    await Promise.allSettled(symbols.map(async symbol => {
-      const r = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${symbol}`);
-      if (!r.ok) return;
-      const d = await r.json();
-      const asset = AS.find(a => a.symbol === symbol);
-      if (!asset) return;
-      const price = parseFloat(d.lastPrice), ch = parseFloat(d.priceChangePercent);
-      if (!isNaN(price)) PX[asset.id] = { p: price, ch: isNaN(ch) ? 0 : ch };
-    }));
-  } catch(e) { console.warn('binance', e); }
+    const r = await fetch(
+      `https://api.coingecko.com/api/v3/simple/price?ids=${[...needed.keys()].join(',')}&vs_currencies=eur&include_24hr_change=true`
+    );
+    if (!r.ok) return;
+    const d = await r.json();
+    needed.forEach((assetId, cgId) => {
+      const row = d[cgId];
+      if (row?.eur) PX[assetId] = { p: row.eur, ch: row.eur_24h_change || 0 };
+    });
+  } catch(e) { console.warn('coingecko', e); }
+}
+
+function getYahooAssets() {
+  // Portfolio Yahoo assets + always VWCE for the Invest tab
+  const map = new Map(AS.filter(a => a.src === 'yahoo').map(a => [a.id, a]));
+  const vwce = CATALOG.find(c => c.id === 'vwce');
+  if (vwce) map.set('vwce', vwce);
+  return [...map.values()];
 }
 
 async function fetchYahoo(a) {
@@ -467,8 +528,8 @@ function renderSparkline(elId, series) {
 async function fetchAll() {
   setStatus('fetching...');
   await Promise.allSettled([
-    fetchBinance(),
-    ...AS.filter(a => a.src === 'yahoo').map(a => fetchYahoo(a)),
+    fetchCoinGecko(),
+    ...getYahooAssets().map(a => fetchYahoo(a)),
     ...AS.filter(a => a.src === 'stooq').map(a => fetchStooq(a)),
     fetchFundsJson(),
     fetchChartSeries(),
@@ -527,6 +588,10 @@ function renderPortfolio() {
   const cel = document.getElementById('totalChange');
   if (cel) { cel.textContent = T > 0 ? fp(wch) + ' today' : '—'; cel.className = 'total-ch ' + (wch >= 0 ? 'up' : 'dn'); }
   const list = document.getElementById('assetList'); if (!list) return;
+  if (!AS.length) {
+    list.innerHTML = '<div class="portfolio-empty">tap + to add your first asset</div>';
+    return;
+  }
   list.innerHTML = AS.map(a => {
     const p = gP(a), ch = gCh(a), v = gV(a);
     const pStr = p > 0 ? fe(p) : '<span class="loading">…</span>';
@@ -534,7 +599,7 @@ function renderPortfolio() {
     return `<div class="asset" onclick="openM('${a.id}')">
       <div><div class="a-name">${a.name}</div><div class="a-sub">${a.sub}</div></div>
       <div><div class="a-price">${pStr}</div>${chStr}</div>
-      <div><div class="a-val">${a.qty > 0 ? fe(v) : '—'}</div><div class="a-units">${a.qty > 0 ? fn(a.qty) + ' u' : 'add'}</div></div>
+      <div><div class="a-val">${a.qty > 0 ? fe(v) : '—'}</div><div class="a-units">${a.qty > 0 ? fn(a.qty) + ' u' : 'tap'}</div></div>
     </div>`;
   }).join('');
 }
@@ -636,6 +701,47 @@ function addBlock() {
   renderPlanner();
 }
 
+// ── ADD ASSET PICKER ─────────────────────────────────────────
+const CAT_LABELS = { crypto:'CRYPTO', etf:'ETF', stock:'STOCK', fund:'FUND', cash:'CASH' };
+const CAT_ORDER  = ['crypto','etf','stock','fund','cash'];
+
+function openAddAsset() {
+  renderAssetCatalog('');
+  document.getElementById('addOv').classList.add('on');
+  setTimeout(() => document.getElementById('assetSearch')?.focus(), 50);
+}
+
+function closeAddAsset() {
+  document.getElementById('addOv').classList.remove('on');
+  const s = document.getElementById('assetSearch');
+  if (s) s.value = '';
+}
+
+function renderAssetCatalog(query) {
+  const q = (query || '').toLowerCase();
+  const added = new Set(AS.map(a => a.id));
+  const items = CATALOG.filter(c =>
+    !added.has(c.id) &&
+    (!q || c.name.toLowerCase().includes(q) || c.sub.toLowerCase().includes(q) || c.id.includes(q))
+  );
+  const el = document.getElementById('catalogList');
+  if (!el) return;
+  if (!items.length) { el.innerHTML = '<div class="news-loading" style="padding:12px 0">nothing left to add</div>'; return; }
+  let html = '';
+  CAT_ORDER.forEach(cat => {
+    const group = items.filter(c => c.cat === cat);
+    if (!group.length) return;
+    html += `<div class="add-cat-header">${CAT_LABELS[cat]}</div>`;
+    group.forEach(c => {
+      html += `<div class="add-asset-item" onclick="addAsset('${c.id}')">
+        <div class="aa-info"><div class="aa-name">${c.name}</div><div class="aa-sub">${c.sub}</div></div>
+        <div class="aa-plus">+</div>
+      </div>`;
+    });
+  });
+  el.innerHTML = html;
+}
+
 // ── PORTFOLIO MODAL ──────────────────────────────────────────
 function openM(id) {
   const a = AS.find(x => x.id === id); if (!a) return;
@@ -690,7 +796,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  document.getElementById('ov')?.addEventListener('click', e => { if (e.target === e.currentTarget) closeM(); });
+  document.getElementById('ov')?.addEventListener('click',    e => { if (e.target === e.currentTarget) closeM(); });
+  document.getElementById('addOv')?.addEventListener('click', e => { if (e.target === e.currentTarget) closeAddAsset(); });
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') closeM();
     if (e.key === 'Enter' && document.getElementById('authOverlay').style.display !== 'none') authSubmit();
