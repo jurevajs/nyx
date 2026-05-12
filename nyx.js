@@ -340,19 +340,21 @@ async function fetchStooq(a) {
   } catch(e) { console.warn('stooq', a.id, e); }
 }
 
-async function fetchFundPage(a) {
+async function fetchFundsJson() {
   try {
-    const txt = await fetchWithProxy(a.fundUrl, 'text');
-    const clean = s => s.toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ');
-    const norm = clean(txt), key = clean(a.fundKey);
-    const idx = norm.lastIndexOf(key); if (idx < 0) return;
-    const slice = norm.slice(idx, idx + 1200);
-    const pm = slice.match(/([0-9]+,[0-9]{2})\s*(?:€|EUR)/);
-    const cm = slice.match(/([+-]?[0-9]+,[0-9]{2})\s*%/);
-    const price = pm ? parseFloat(pm[1].replace(',', '.')) : NaN;
-    const change = cm ? parseFloat(cm[1].replace(',', '.')) : 0;
-    if (!isNaN(price)) PX[a.id] = { p: price, ch: change };
-  } catch(e) { console.warn('fund', a.id, e); }
+    const r = await fetch('data/funds.json?_=' + Date.now());
+    if (!r.ok) return;
+    const d = await r.json();
+    if (!d.prices) return;
+    Object.entries(d.prices).forEach(([id, px]) => {
+      if (px && typeof px.p === 'number') PX[id] = px;
+    });
+    const age = Date.now() - new Date(d.updated).getTime();
+    const ageStr = age < 3600000 ? Math.round(age / 60000) + 'm ago'
+                 : age < 86400000 ? Math.round(age / 3600000) + 'h ago'
+                 : Math.round(age / 86400000) + 'd ago';
+    console.log(`[NYX] fund prices updated ${ageStr}`);
+  } catch(e) { console.warn('fund json', e); }
 }
 
 // ── INVEST SIGNAL ─────────────────────────────────────────────
@@ -468,7 +470,7 @@ async function fetchAll() {
     fetchBinance(),
     ...AS.filter(a => a.src === 'yahoo').map(a => fetchYahoo(a)),
     ...AS.filter(a => a.src === 'stooq').map(a => fetchStooq(a)),
-    ...AS.filter(a => a.src === 'triglav' || a.src === 'infond').map(a => fetchFundPage(a)),
+    fetchFundsJson(),
     fetchChartSeries(),
     fetchInvestSignal(),
     fetchFearGreed(),

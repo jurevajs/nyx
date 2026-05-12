@@ -1,0 +1,32 @@
+name: Fetch Fund Prices
+
+on:
+  schedule:
+    # 16:00 UTC = 18:00 CEST / 17:00 CET — after Slovenian funds publish NAV
+    - cron: '0 16 * * 1-5'
+  workflow_dispatch:
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Fetch fund prices
+        run: node .github/scripts/fetch-funds.js
+
+      - name: Commit if changed
+        run: |
+          git config user.name "nyx-bot"
+          git config user.email "noreply@github.com"
+          git add data/funds.json
+          git diff --staged --quiet && echo "No changes" && exit 0
+          git commit -m "chore: update fund prices [skip ci]"
+          git push
