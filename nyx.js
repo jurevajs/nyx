@@ -374,23 +374,17 @@ function renderFearGreed() {
 let ethNews = [];
 
 async function fetchEthNews() {
-  const ETH_RE = /ethereum|vitalik|eth\b|eip-|staking|l2\b|layer.?2|rollup|dencun|pectra|uniswap|aave|defi/i;
-  const feeds = [
-    { rss: 'https://cointelegraph.com/rss/tag/ethereum',                              source: 'Cointelegraph' },
-    { rss: 'https://thedefiant.io/feed',                                              source: 'The Defiant'   },
-    { rss: 'https://www.coindesk.com/arc/outboundfeeds/rss/?category=ethereum',       source: 'CoinDesk'      },
-  ];
-  for (const feed of feeds) {
-    try {
-      const url = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feed.rss)}&count=15`;
-      const r = await fetch(url), d = await r.json();
-      if (d.status !== 'ok' || !d.items?.length) continue;
-      const matched = d.items.filter(i => ETH_RE.test(i.title || '')).slice(0, 3);
-      if (!matched.length) continue;
-      ethNews = matched.map(i => ({ title: i.title?.trim() || '', source: feed.source, time: new Date(i.pubDate || 0).getTime() / 1000 }));
-      return;
-    } catch(e) { console.warn('eth news', feed.source, e); }
-  }
+  try {
+    const r = await fetch('https://min-api.cryptocompare.com/data/v2/news/?categories=ETH&lang=EN&sortOrder=latest');
+    if (!r.ok) return;
+    const d = await r.json();
+    if (!d.Data?.length) return;
+    ethNews = d.Data.slice(0, 3).map(item => ({
+      title:  item.title?.trim() || '',
+      source: item.source_info?.name || item.source || '',
+      time:   item.published_on,
+    }));
+  } catch(e) { console.warn('eth news', e); }
 }
 
 function timeAgo(ts) {
