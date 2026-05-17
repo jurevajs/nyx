@@ -57,6 +57,7 @@ async function fetchStooqAsset(asset) {
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const txt   = await res.text();
+  console.log(`  [${asset.symbol}] raw: ${txt.slice(0, 120).replace(/\n/g, '\\n')}`);
   const lines = txt.trim().split('\n').filter(l => l.trim() && !l.startsWith('Date'));
   if (lines.length < 2) throw new Error('Insufficient data');
   const last  = lines[lines.length - 1].split(',');
