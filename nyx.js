@@ -31,12 +31,8 @@ const CATALOG = [
 ];
 
 let AS = []; // user's active portfolio — built from CATALOG + Supabase holdings
-
 let PX = {};
-let investSignals = {};
-let chartRanges = { eth: '1h', vwce: '7d' };
-let chartSeries  = { eth: {}, vwce: {} };
-let FUND_HISTORY = {};
+let snapshots = [];
 
 // ── STORAGE ──────────────────────────────────────────────────
 async function saveHoldings() {
@@ -65,6 +61,36 @@ async function loadHoldings() {
     if (row.manual_price != null) asset.manual = row.manual_price;
     AS.push(asset);
   });
+}
+
+async function saveSnapshot() {
+  if (!currentUser) return;
+  const total = AS.reduce((s, a) => s + gV(a), 0);
+  if (total <= 0) return;
+  const date  = new Date().toISOString().slice(0, 10);
+  const entry = { date, total_eur: Math.round(total * 100) / 100 };
+  try {
+    await sb.from('snapshots').upsert(
+      { user_id: currentUser.id, ...entry },
+      { onConflict: 'user_id,date' }
+    );
+    const idx = snapshots.findIndex(s => s.date === date);
+    if (idx >= 0) snapshots[idx] = entry;
+    else { snapshots.push(entry); snapshots.sort((a, b) => a.date.localeCompare(b.date)); }
+    renderAnalytics();
+  } catch(e) { console.warn('snapshot save', e); }
+}
+
+async function loadSnapshots() {
+  if (!currentUser) return;
+  try {
+    const { data } = await sb.from('snapshots')
+      .select('date, total_eur')
+      .eq('user_id', currentUser.id)
+      .order('date', { ascending: true })
+      .limit(90);
+    snapshots = data || [];
+  } catch(e) { console.warn('snapshots load', e); }
 }
 
 async function addAsset(id) {
@@ -167,7 +193,7 @@ async function authSubmit() {
         currentUser = data.user;
         try { await loadHoldings(); } catch(e) { console.error('data load:', e); }
         hideAuth();
-        renderPortfolio(); renderInvest();
+        renderPortfolio(); renderAnalytics();
         if (!appStarted) { fetchAll(); setInterval(fetchAll, 5 * 60 * 1000); appStarted = true; }
       }
     }
@@ -184,10 +210,11 @@ async function signOut() {
   await sb.auth.signOut();
   AS.length = 0;
   PX = {};
+  snapshots = [];
 }
 
 // ── TAB NAVIGATION ────────────────────────────────────────────
-const TAB_TITLES = { portfolio: 'PORTFOLIO', invest: 'INVEST' };
+const TAB_TITLES = { portfolio: 'PORTFOLIO', analytics: 'ANALYTICS' };
 
 function switchTab(id) {
   document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
@@ -199,10 +226,9 @@ function switchTab(id) {
 
 // ── PRICE FETCH ──────────────────────────────────────────────
 async function fetchCoinGecko() {
-  // Portfolio crypto + always ETH for the Invest tab
   const needed = new Map();
   CATALOG.filter(c => c.src === 'cg').forEach(c => {
-    if (AS.find(a => a.id === c.id) || c.id === 'eth') needed.set(c.cgId, c.id);
+    if (AS.find(a => a.id === c.id)) needed.set(c.cgId, c.id);
   });
   if (!needed.size) return;
   try {
@@ -218,26 +244,6 @@ async function fetchCoinGecko() {
   } catch(e) { console.warn('coingecko', e); }
 }
 
-async function fetchBinanceSeries(interval, limit) {
-  try {
-    const r = await fetch(`https://api.binance.com/api/v3/klines?symbol=ETHEUR&interval=${interval}&limit=${limit}`);
-    if (!r.ok) return [];
-    const d = await r.json();
-    return d.map(k => parseFloat(k[4])).filter(v => Number.isFinite(v));
-  } catch(e) { return []; }
-}
-
-async function fetchChartSeries() {
-  const [eth1h, eth24h, eth7d] = await Promise.all([
-    fetchBinanceSeries('1m', 60),
-    fetchBinanceSeries('1h', 24),
-    fetchBinanceSeries('1h', 168),
-  ]);
-  chartSeries.eth  = { '1h': eth1h, '24h': eth24h, '7d': eth7d };
-  const hist = FUND_HISTORY.vwce || [];
-  chartSeries.vwce = { '7d': hist.slice(-7), '30d': hist.slice(-30) };
-}
-
 async function fetchFundsJson() {
   try {
     const r = await fetch('data/funds.json?_=' + Date.now());
@@ -247,11 +253,6 @@ async function fetchFundsJson() {
     Object.entries(d.prices).forEach(([id, px]) => {
       if (px && typeof px.p === 'number') PX[id] = px;
     });
-    if (d.history) {
-      Object.entries(d.history).forEach(([id, hist]) => {
-        if (Array.isArray(hist)) FUND_HISTORY[id] = hist;
-      });
-    }
     const age = Date.now() - new Date(d.updated).getTime();
     const ageStr = age < 3600000 ? Math.round(age / 60000) + 'm ago'
                  : age < 86400000 ? Math.round(age / 3600000) + 'h ago'
@@ -260,123 +261,17 @@ async function fetchFundsJson() {
   } catch(e) { console.warn('fund json', e); }
 }
 
-// ── INVEST SIGNAL ─────────────────────────────────────────────
-async function fetchInvestSignal() {
-  try {
-    const prices = chartSeries.eth['7d']?.length ? chartSeries.eth['7d'] : await fetchBinanceSeries('1h', 168);
-    if (prices.length < 4) return;
-    const first = prices[0], last = prices[prices.length - 1];
-    const trend7d = ((last - first) / first) * 100;
-    const changes = [];
-    for (let i = 1; i < prices.length; i++) changes.push((prices[i] - prices[i-1]) / prices[i-1] * 100);
-    const mean = changes.reduce((a, b) => a + b, 0) / changes.length;
-    const vol  = Math.sqrt(changes.reduce((s, c) => s + Math.pow(c - mean, 2), 0) / changes.length);
-    let score, label, note, icon;
-    if (trend7d > 5 && vol < 4)    { score = 2; label = 'safe';    icon = '◎'; note = `ETH +${trend7d.toFixed(1)}% over 7d, volatility low (${vol.toFixed(1)}%/day). Momentum favors entry.`; }
-    else if (trend7d < -8 || vol > 7) { score = 0; label = 'risky';   icon = '⚠'; note = `ETH ${trend7d.toFixed(1)}% over 7d, volatility high (${vol.toFixed(1)}%/day). Consider waiting.`; }
-    else                            { score = 1; label = 'caution'; icon = '◐'; note = `ETH ${trend7d > 0 ? '+' : ''}${trend7d.toFixed(1)}% over 7d, vol ${vol.toFixed(1)}%/day. Mixed signals.`; }
-    investSignals.eth = { score, label, note, icon, trend7d, vol };
-  } catch(e) { console.warn('signal fetch', e); }
-}
-
-// ── FEAR & GREED ─────────────────────────────────────────────
-let fearGreedData = null;
-
-async function fetchFearGreed() {
-  try {
-    const r = await fetch('https://api.alternative.me/fng/?limit=1');
-    const d = await r.json();
-    if (d.data?.[0]) fearGreedData = { value: +d.data[0].value, label: d.data[0].value_classification };
-  } catch(e) { console.warn('fng', e); }
-}
-
-function renderFearGreed() {
-  const valEl = document.getElementById('fgVal'), lblEl = document.getElementById('fgLabel'), fillEl = document.getElementById('fgFill');
-  if (!valEl || !fearGreedData) return;
-  const { value, label } = fearGreedData;
-  valEl.textContent = value; lblEl.textContent = label;
-  if (fillEl) fillEl.style.width = value + '%';
-  const color = value <= 25 ? 'rgba(255,80,80,0.8)' : value <= 45 ? 'rgba(255,150,80,0.8)' : value <= 55 ? 'rgba(255,255,255,0.5)' : value <= 75 ? 'rgba(140,255,170,0.85)' : 'rgba(100,255,150,0.9)';
-  valEl.style.color = color;
-  if (fillEl) fillEl.style.background = color;
-}
-
-// ── ETH NEWS ─────────────────────────────────────────────────
-let ethNews = [];
-
-async function fetchEthNews() {
-  try {
-    const r = await fetch('https://min-api.cryptocompare.com/data/v2/news/?categories=ETH&lang=EN&sortOrder=latest');
-    if (!r.ok) return;
-    const d = await r.json();
-    if (!d.Data?.length) return;
-    ethNews = d.Data.slice(0, 3).map(item => ({
-      title:  item.title?.trim() || '',
-      source: item.source_info?.name || item.source || '',
-      time:   item.published_on,
-    }));
-  } catch(e) { console.warn('eth news', e); }
-}
-
-function timeAgo(ts) {
-  const s = Date.now() / 1000 - ts;
-  if (s < 3600)  return Math.floor(s / 60)   + 'm ago';
-  if (s < 86400) return Math.floor(s / 3600)  + 'h ago';
-  return Math.floor(s / 86400) + 'd ago';
-}
-
-function renderEthNews() {
-  const el = document.getElementById('newsBlock');
-  if (!el || !ethNews.length) return;
-  el.innerHTML = ethNews.map(n => `<div class="news-item">
-    <div class="news-title">${n.title.length > 90 ? n.title.slice(0, 90) + '…' : n.title}</div>
-    <div class="news-meta">${n.source} · ${timeAgo(n.time)}</div>
-  </div>`).join('');
-}
-
-function setChartRange(assetId, range) { chartRanges[assetId] = range; updateChartButtons(assetId); renderInvest(); }
-function updateChartButtons(assetId) {
-  document.querySelectorAll(`.chart-btn[data-asset="${assetId}"]`).forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.range === chartRanges[assetId]);
-  });
-}
-
-function renderSparkline(elId, series) {
-  const el = document.getElementById(elId); if (!el) return;
-  const values = (series || []).map(v => Number(v)).filter(v => Number.isFinite(v));
-  if (values.length < 2) { el.innerHTML = '<div class="news-loading">loading…</div>'; return; }
-  const w = 320, h = 54, pad = 4;
-  const min = Math.min(...values), max = Math.max(...values), span = max - min || 1;
-  const step = (w - pad * 2) / (values.length - 1);
-  const points = values.map((v, i) => [pad + i * step, pad + (h - pad * 2) * (1 - ((v - min) / span))]);
-  const linePoints = points.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
-  const areaPath = `M ${points[0][0].toFixed(1)} ${h - pad} L ${points.map(([x, y]) => `${x.toFixed(1)} ${y.toFixed(1)}`).join(' L ')} L ${points[points.length-1][0].toFixed(1)} ${h - pad} Z`;
-  const rising = values[values.length - 1] >= values[0];
-  const stroke = rising ? 'rgba(140,255,170,0.92)' : 'rgba(255,100,100,0.92)';
-  const fill   = rising ? 'rgba(140,255,170,0.10)' : 'rgba(255,100,100,0.10)';
-  el.innerHTML = `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">
-    <rect class="spark-bg" x="0" y="0" width="${w}" height="${h}" rx="8"></rect>
-    <path class="spark-area" d="${areaPath}" style="fill:${fill}"></path>
-    <polyline class="spark-line" points="${linePoints}" style="stroke:${stroke}"></polyline>
-  </svg>`;
-}
-
 async function fetchAll() {
   setStatus('fetching...');
-  await fetchFundsJson(); // must run first — chart series reads FUND_HISTORY.vwce
-  await Promise.allSettled([
-    fetchCoinGecko(),
-    fetchChartSeries(),
-    fetchInvestSignal(),
-    fetchFearGreed(),
-    fetchEthNews(),
-  ]);
+  await fetchFundsJson();
+  await Promise.allSettled([fetchCoinGecko()]);
   AS.filter(a => a.src === 'manual').forEach(a => { PX[a.id] = { p: a.manual || 1, ch: 0 }; });
   savePX();
   const t = new Date().toLocaleTimeString('sl-SI', { hour: '2-digit', minute: '2-digit' });
   setStatus(`updated ${t}`);
   renderPortfolio();
-  renderInvest();
+  renderAnalytics();
+  saveSnapshot();
 }
 
 // ── FORMAT ───────────────────────────────────────────────────
@@ -414,35 +309,82 @@ function renderPortfolio() {
   }).join('');
 }
 
-// ── INVEST PANEL ─────────────────────────────────────────────
-function renderInvest() {
-  const eth = AS.find(a => a.id === 'eth');
-  if (eth) {
-    const p = gP(eth), ch = gCh(eth);
-    const pEl = document.getElementById('ethPrice'), cEl = document.getElementById('ethCh');
-    if (pEl) pEl.textContent = p > 0 ? fe(p) : '—';
-    if (cEl) { cEl.textContent = p > 0 ? fp(ch) : '—'; cEl.className = 'ipc-ch ' + (ch >= 0 ? 'up' : 'dn'); }
+// ── ANALYTICS ────────────────────────────────────────────────
+const CAT_ORDER  = ['crypto','etf','stock','fund','cash'];
+const CAT_LABELS = { crypto:'CRYPTO', etf:'ETF', stock:'STOCK', fund:'FUND', cash:'CASH' };
+
+function renderSparkline(elId, values) {
+  const el = document.getElementById(elId); if (!el) return;
+  const pts = (values || []).map(Number).filter(Number.isFinite);
+  if (pts.length < 2) { el.innerHTML = '<div class="news-loading">building history…</div>'; return; }
+  const w = 320, h = 70, pad = 4;
+  const min = Math.min(...pts), max = Math.max(...pts), span = max - min || 1;
+  const step = (w - pad * 2) / (pts.length - 1);
+  const points = pts.map((v, i) => [pad + i * step, pad + (h - pad * 2) * (1 - (v - min) / span)]);
+  const line = points.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+  const area = `M ${points[0][0].toFixed(1)} ${h - pad} L ${points.map(([x,y]) => `${x.toFixed(1)} ${y.toFixed(1)}`).join(' L ')} L ${points[points.length-1][0].toFixed(1)} ${h - pad} Z`;
+  const rising = pts[pts.length - 1] >= pts[0];
+  const stroke = rising ? 'rgba(140,255,170,0.92)' : 'rgba(255,100,100,0.92)';
+  const fill   = rising ? 'rgba(140,255,170,0.10)' : 'rgba(255,100,100,0.10)';
+  el.innerHTML = `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">
+    <rect class="spark-bg" x="0" y="0" width="${w}" height="${h}" rx="8"></rect>
+    <path class="spark-area" d="${area}" style="fill:${fill}"></path>
+    <polyline class="spark-line" points="${line}" style="stroke:${stroke}"></polyline>
+  </svg>`;
+}
+
+function renderAnalytics() {
+  const total = AS.reduce((s, a) => s + gV(a), 0);
+
+  // Net worth history chart
+  if (snapshots.length >= 2) {
+    renderSparkline('analyticsChart', snapshots.map(s => parseFloat(s.total_eur)));
   }
-  const vwce = AS.find(a => a.id === 'vwce');
-  if (vwce) {
-    const p = gP(vwce), ch = gCh(vwce);
-    const pEl = document.getElementById('vwcePrice'), cEl = document.getElementById('vwceCh');
-    if (pEl) pEl.textContent = p > 0 ? fe(p) : '—';
-    if (cEl) { cEl.textContent = p > 0 ? fp(ch) : '—'; cEl.className = 'ipc-ch ' + (ch >= 0 ? 'up' : 'dn'); }
+
+  // Allocation
+  const el = document.getElementById('allocList');
+  if (!el) return;
+
+  if (total <= 0) {
+    el.innerHTML = '<div class="portfolio-empty">set quantities in Portfolio to see allocation</div>';
+    return;
   }
-  const sig = investSignals.eth;
-  const verdictEl = document.getElementById('signalVerdict'), noteEl = document.getElementById('signalNote');
-  if (sig && verdictEl && noteEl) { verdictEl.className = `signal-verdict ${sig.label}`; verdictEl.textContent = sig.label.toUpperCase(); noteEl.textContent = sig.note; }
-  updateChartButtons('eth'); updateChartButtons('vwce');
-  renderSparkline('ethChart', chartSeries.eth[chartRanges.eth]);
-  renderSparkline('vwceChart', chartSeries.vwce[chartRanges.vwce]);
-  renderFearGreed(); renderEthNews();
+
+  // By category
+  const byCat = {};
+  AS.forEach(a => { const v = gV(a); if (v > 0) byCat[a.cat] = (byCat[a.cat] || 0) + v; });
+
+  let html = '';
+  CAT_ORDER.forEach(cat => {
+    if (!byCat[cat]) return;
+    const pct = byCat[cat] / total * 100;
+    html += `<div class="alloc-row">
+      <div class="alloc-label">${CAT_LABELS[cat]}</div>
+      <div class="alloc-bar-track"><div class="alloc-bar-fill" style="width:${pct.toFixed(1)}%"></div></div>
+      <div class="alloc-pct">${pct.toFixed(1)}%</div>
+      <div class="alloc-val">${fe(byCat[cat])}</div>
+    </div>`;
+  });
+
+  // By asset
+  const withValue = AS.filter(a => gV(a) > 0).sort((a, b) => gV(b) - gV(a));
+  if (withValue.length > 1) {
+    html += '<div class="divider"></div>';
+    withValue.forEach(a => {
+      const v = gV(a), pct = v / total * 100;
+      html += `<div class="alloc-row">
+        <div class="alloc-label">${a.name}</div>
+        <div class="alloc-bar-track"><div class="alloc-bar-fill" style="width:${pct.toFixed(1)}%"></div></div>
+        <div class="alloc-pct">${pct.toFixed(1)}%</div>
+        <div class="alloc-val">${fe(v)}</div>
+      </div>`;
+    });
+  }
+
+  el.innerHTML = html;
 }
 
 // ── ADD ASSET PICKER ─────────────────────────────────────────
-const CAT_LABELS = { crypto:'CRYPTO', etf:'ETF', stock:'STOCK', fund:'FUND', cash:'CASH' };
-const CAT_ORDER  = ['crypto','etf','stock','fund','cash'];
-
 function openAddAsset() {
   renderAssetCatalog('');
   document.getElementById('addOv').classList.add('on');
@@ -519,14 +461,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && currentUser) {
       hideAuth();
-      renderPortfolio(); renderInvest();
+      renderPortfolio(); renderAnalytics();
       if (!appStarted) {
         fetchAll();
         setInterval(fetchAll, 5 * 60 * 1000);
         appStarted = true;
       }
       loadHoldings()
-        .then(() => renderPortfolio())
+        .then(async () => { renderPortfolio(); await loadSnapshots(); renderAnalytics(); })
         .catch(e => console.error('[NYX] data load failed:', e));
     } else if (event === 'SIGNED_OUT' || (event === 'INITIAL_SESSION' && !currentUser)) {
       appStarted = false;

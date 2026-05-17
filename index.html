@@ -40,7 +40,7 @@
 
   <nav class="tab-nav">
     <button class="tab-btn active" data-tab="portfolio" onclick="switchTab('portfolio')">Portfolio</button>
-    <button class="tab-btn" data-tab="invest" onclick="switchTab('invest')">Invest</button>
+    <button class="tab-btn" data-tab="analytics" onclick="switchTab('analytics')">Analytics</button>
   </nav>
 
   <div class="win win-main">
@@ -74,59 +74,18 @@
         </div>
       </div>
 
-      <!-- TAB: INVEST -->
-      <div class="tab-pane" id="tab-invest">
+      <!-- TAB: ANALYTICS -->
+      <div class="tab-pane" id="tab-analytics">
 
-        <div class="invest-prices">
-          <div class="invest-price-card">
-            <div class="ipc-name">ETHEREUM</div>
-            <div class="ipc-val" id="ethPrice">—</div>
-            <div class="ipc-ch" id="ethCh">—</div>
-            <div class="ipc-chart" id="ethChart"></div>
-            <div class="chart-switches">
-              <button class="chart-btn active" data-asset="eth" data-range="1h" onclick="setChartRange('eth','1h')">1H</button>
-              <button class="chart-btn" data-asset="eth" data-range="24h" onclick="setChartRange('eth','24h')">24H</button>
-              <button class="chart-btn" data-asset="eth" data-range="7d" onclick="setChartRange('eth','7d')">7D</button>
-            </div>
-          </div>
-          <div class="invest-price-sep"></div>
-          <div class="invest-price-card">
-            <div class="ipc-name">VWCE</div>
-            <div class="ipc-val" id="vwcePrice">—</div>
-            <div class="ipc-ch" id="vwceCh">—</div>
-            <div class="ipc-chart" id="vwceChart"></div>
-            <div class="chart-switches">
-              <button class="chart-btn active" data-asset="vwce" data-range="7d" onclick="setChartRange('vwce','7d')">7D</button>
-              <button class="chart-btn" data-asset="vwce" data-range="30d" onclick="setChartRange('vwce','30d')">30D</button>
-            </div>
-          </div>
+        <div class="label">NET WORTH HISTORY</div>
+        <div class="analytics-chart" id="analyticsChart">
+          <div class="news-loading">building history…</div>
         </div>
 
         <div class="divider"></div>
 
-        <div class="label">ETH SIGNAL</div>
-        <div class="invest-signal">
-          <div class="signal-verdict" id="signalVerdict">READING</div>
-          <div class="signal-note" id="signalNote">Analyzing 7-day trend and volatility…</div>
-        </div>
-
-        <div class="divider"></div>
-
-        <div class="label">SENTIMENT</div>
-        <div class="fg-block">
-          <div class="fg-val" id="fgVal">—</div>
-          <div class="fg-right">
-            <div class="fg-label" id="fgLabel">loading…</div>
-            <div class="fg-bar"><div class="fg-fill" id="fgFill" style="width:0%"></div></div>
-          </div>
-        </div>
-
-        <div class="divider"></div>
-
-        <div class="label">ETH NEWS</div>
-        <div class="news-block" id="newsBlock">
-          <div class="news-loading">loading…</div>
-        </div>
+        <div class="label">ALLOCATION</div>
+        <div id="allocList"></div>
 
       </div>
 
