@@ -77,7 +77,18 @@ body {
   padding: 4px;
 }
 
+.tab-indicator {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  background: rgba(255,255,255,0.12);
+  border-radius: 100px;
+  pointer-events: none;
+  transition: left 0.35s cubic-bezier(0.34, 1.4, 0.64, 1), width 0.35s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
 .tab-btn {
+  position: relative;
   background: none;
   border: none;
   color: rgba(255,255,255,0.4);
@@ -88,10 +99,10 @@ body {
   border-radius: 100px;
   cursor: pointer;
   text-transform: uppercase;
-  transition: all 0.2s;
+  transition: color 0.2s;
 }
 .tab-btn:hover { color: rgba(255,255,255,0.7); }
-.tab-btn.active { background: rgba(255,255,255,0.12); color: #fff; }
+.tab-btn.active { color: #fff; }
 
 .tab-pane { display: none; }
 .tab-pane.active { display: block; animation: tabIn 0.2s ease; }

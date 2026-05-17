@@ -216,12 +216,20 @@ async function signOut() {
 // ── TAB NAVIGATION ────────────────────────────────────────────
 const TAB_TITLES = { portfolio: 'PORTFOLIO', analytics: 'ANALYTICS' };
 
-function switchTab(id) {
+function switchTab(id, animate = true) {
   document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
   document.getElementById('tab-' + id).classList.add('active');
-  document.querySelector(`.tab-btn[data-tab="${id}"]`).classList.add('active');
+  const btn = document.querySelector(`.tab-btn[data-tab="${id}"]`);
+  btn.classList.add('active');
   document.getElementById('winTitle').textContent = TAB_TITLES[id] || id.toUpperCase();
+  const ind = document.querySelector('.tab-indicator');
+  if (ind) {
+    if (!animate) ind.style.transition = 'none';
+    ind.style.left  = btn.offsetLeft + 'px';
+    ind.style.width = btn.offsetWidth + 'px';
+    if (!animate) requestAnimationFrame(() => { ind.style.transition = ''; });
+  }
 }
 
 // ── PRICE FETCH ──────────────────────────────────────────────
@@ -454,6 +462,7 @@ async function saveH() {
 // ── BOOT ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   loadPX();
+  switchTab('portfolio', false);
 
   sb.auth.onAuthStateChange(async (event, session) => {
     console.log('[NYX] auth event:', event, '| user:', session?.user?.email || null);
