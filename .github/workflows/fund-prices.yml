@@ -20,6 +20,8 @@ jobs:
           node-version: '20'
 
       - name: Fetch fund prices
+        env:
+          TWELVE_DATA_KEY: ${{ secrets.TWELVE_DATA_KEY }}
         run: node .github/scripts/fetch-funds.js
 
       - name: Commit if changed

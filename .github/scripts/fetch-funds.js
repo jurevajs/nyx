@@ -16,12 +16,12 @@ const FUNDS = [
   },
 ];
 
-// ── ETFs and stocks via Stooq EOD CSV ────────────────────────
-const STOOQ_ASSETS = [
-  { id: 'vwce', symbol: 'vwce.de' },
-  { id: 'cspx', symbol: 'cspx.l'  },
-  { id: 'iwda', symbol: 'iwda.as' },
-  { id: 'krkg', symbol: 'krkg.lj' },
+// ── ETFs and stocks via Twelve Data ──────────────────────────
+const TD_ASSETS = [
+  { id: 'vwce', symbol: 'VWCE', exchange: 'XETRA' },
+  { id: 'cspx', symbol: 'CSPX', exchange: 'LSE'   },
+  { id: 'iwda', symbol: 'IWDA', exchange: 'AMS'   },
+  { id: 'krkg', symbol: 'KRKG', exchange: 'LJE'   },
 ];
 
 function clean(s) {
@@ -50,36 +50,37 @@ async function fetchFund(fund) {
   return { p: price, ch: change };
 }
 
-async function fetchStooqAsset(asset) {
-  const url = `https://stooq.com/q/d/l/?s=${asset.symbol}&i=d`;
+async function fetchTwelveDataAsset(asset, apiKey) {
+  const url = `https://api.twelvedata.com/time_series?symbol=${asset.symbol}&exchange=${asset.exchange}&interval=1day&outputsize=30&apikey=${apiKey}`;
   const res = await fetch(url, {
     headers: { 'User-Agent': 'Mozilla/5.0 (compatible; nyx-bot/1.0)' },
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const txt   = await res.text();
-  console.log(`  [${asset.symbol}] raw: ${txt.slice(0, 120).replace(/\n/g, '\\n')}`);
-  const lines = txt.trim().split('\n').filter(l => l.trim() && !l.startsWith('Date'));
-  if (lines.length < 2) throw new Error('Insufficient data');
-  const last  = lines[lines.length - 1].split(',');
-  const prev  = lines[lines.length - 2].split(',');
-  const close = parseFloat(last[4]);
-  const prevClose = parseFloat(prev[4]);
+  const d = await res.json();
+  if (d.status === 'error') throw new Error(d.message || 'API error');
+  if (!d.values?.length) throw new Error('No data');
+  // values are newest-first
+  const close    = parseFloat(d.values[0].close);
+  const prevClose = d.values.length > 1 ? parseFloat(d.values[1].close) : NaN;
   if (isNaN(close)) throw new Error('Invalid price');
   const ch = (!isNaN(prevClose) && prevClose) ? ((close - prevClose) / prevClose * 100) : 0;
-  const history = lines.slice(-30).map(l => {
-    const v = parseFloat(l.split(',')[4]);
-    return isNaN(v) ? null : v;
+  const history = d.values.slice().reverse().map(v => {
+    const p = parseFloat(v.close);
+    return isNaN(p) ? null : p;
   }).filter(v => v !== null);
   return { p: close, ch, history };
 }
 
 async function main() {
+  const apiKey  = process.env.TWELVE_DATA_KEY;
+  if (!apiKey) throw new Error('TWELVE_DATA_KEY env var not set');
+
   const outPath = path.join(__dirname, '../../data/funds.json');
 
   let existingData = { prices: {}, history: {} };
   try { existingData = JSON.parse(fs.readFileSync(outPath, 'utf8')); } catch (_) {}
 
-  const prices = { ...existingData.prices || {} };
+  const prices  = { ...existingData.prices  || {} };
   const history = { ...existingData.history || {} };
 
   for (const fund of FUNDS) {
@@ -91,9 +92,9 @@ async function main() {
     }
   }
 
-  for (const asset of STOOQ_ASSETS) {
+  for (const asset of TD_ASSETS) {
     try {
-      const result = await fetchStooqAsset(asset);
+      const result = await fetchTwelveDataAsset(asset, apiKey);
       prices[asset.id]  = { p: result.p, ch: result.ch };
       if (result.history.length) history[asset.id] = result.history;
       console.log(`✓ ${asset.id}: ${result.p} (${result.ch >= 0 ? '+' : ''}${result.ch.toFixed(2)}%)`);
