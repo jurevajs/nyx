@@ -76,7 +76,6 @@ body {
   border: 0.5px solid rgba(255,255,255,0.1);
   border-radius: 100px;
   padding: 4px;
-  overflow: hidden;
 }
 
 .tab-indicator {
@@ -86,7 +85,7 @@ body {
   background: rgba(255,255,255,0.12);
   border-radius: 100px;
   pointer-events: none;
-  transition: left 0.35s cubic-bezier(0.34, 1.4, 0.64, 1), width 0.35s cubic-bezier(0.34, 1.4, 0.64, 1);
+  transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .tab-btn {

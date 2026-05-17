@@ -462,7 +462,7 @@ async function saveH() {
 // ── BOOT ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   loadPX();
-  switchTab('portfolio', false);
+  requestAnimationFrame(() => switchTab('portfolio', false));
 
   sb.auth.onAuthStateChange(async (event, session) => {
     console.log('[NYX] auth event:', event, '| user:', session?.user?.email || null);
