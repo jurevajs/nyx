@@ -69,6 +69,7 @@ body {
 
 /* ── TAB NAV ── */
 .tab-nav {
+  position: relative;
   display: flex;
   gap: 4px;
   background: rgba(255,255,255,0.06);
