@@ -18,11 +18,9 @@ const CATALOG = [
   { id:'dot',  name:'Polkadot',         sub:'DOT',                cat:'crypto', src:'cg', cgId:'polkadot'      },
   { id:'link', name:'Chainlink',        sub:'LINK',               cat:'crypto', src:'cg', cgId:'chainlink'     },
   { id:'pol',  name:'Polygon',          sub:'POL',                cat:'crypto', src:'cg', cgId:'matic-network' },
-  // ETFs — prices via GitHub Actions → data/funds.json (Stooq EOD)
+  // ETFs — prices via GitHub Actions → data/funds.json (Yahoo Finance EOD)
   { id:'vwce', name:'VWCE',             sub:'FTSE All-World',     cat:'etf',   src:'fund' },
-  { id:'cspx', name:'CSPX',             sub:'S&P 500',            cat:'etf',   src:'fund' },
-  { id:'iwda', name:'IWDA',             sub:'MSCI World',         cat:'etf',   src:'fund' },
-  // Stocks — prices via GitHub Actions → data/funds.json (Stooq EOD)
+  // Slovenian stocks — prices via GitHub Actions → data/funds.json (LJSE API)
   { id:'krkg', name:'Krka d.d.',        sub:'KRKG.LJ',            cat:'stock', src:'fund' },
   // Slovenian mutual funds — prices via GitHub Actions → data/funds.json
   { id:'tri',  name:'Triglav DMT EUR',  sub:'Triglav Investments', cat:'fund', src:'fund' },

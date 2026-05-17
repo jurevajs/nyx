@@ -16,13 +16,18 @@ const FUNDS = [
   },
 ];
 
-// ── ETFs and stocks via Twelve Data ──────────────────────────
-const TD_ASSETS = [
-  { id: 'vwce', symbol: 'VWCE', exchange: 'XETRA' },
-  { id: 'cspx', symbol: 'CSPX', exchange: 'LSE'   },
-  { id: 'iwda', symbol: 'IWDA', exchange: 'AMS'   },
-  { id: 'krkg', symbol: 'KRKG', exchange: 'LJE'   },
+// ── ETFs via Yahoo Finance EOD ────────────────────────────────
+const YAHOO_ASSETS = [
+  { id: 'vwce', symbol: 'VWCE.DE' },
 ];
+
+// ── Slovenian stocks via LJSE REST API ────────────────────────
+// One API call fetches all LJSE securities — add symbols here freely
+const LJSE_STOCKS = [
+  { id: 'krkg', symbol: 'KRKG' },
+];
+
+// ─────────────────────────────────────────────────────────────
 
 function clean(s) {
   return s.toUpperCase()
@@ -50,31 +55,57 @@ async function fetchFund(fund) {
   return { p: price, ch: change };
 }
 
-async function fetchTwelveDataAsset(asset, apiKey) {
-  const url = `https://api.twelvedata.com/time_series?symbol=${asset.symbol}&exchange=${asset.exchange}&interval=1day&outputsize=30&apikey=${apiKey}`;
+async function fetchYahooAsset(asset) {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${asset.symbol}?interval=1d&range=1mo`;
   const res = await fetch(url, {
-    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; nyx-bot/1.0)' },
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+      'Accept': 'application/json',
+    },
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const d = await res.json();
-  if (d.status === 'error') throw new Error(d.message || 'API error');
-  if (!d.values?.length) throw new Error('No data');
-  // values are newest-first
-  const close    = parseFloat(d.values[0].close);
-  const prevClose = d.values.length > 1 ? parseFloat(d.values[1].close) : NaN;
-  if (isNaN(close)) throw new Error('Invalid price');
-  const ch = (!isNaN(prevClose) && prevClose) ? ((close - prevClose) / prevClose * 100) : 0;
-  const history = d.values.slice().reverse().map(v => {
-    const p = parseFloat(v.close);
-    return isNaN(p) ? null : p;
-  }).filter(v => v !== null);
+  const d      = await res.json();
+  const result = d.chart?.result?.[0];
+  if (!result) throw new Error('No data');
+  const close    = result.meta.regularMarketPrice;
+  const prevClose = result.meta.previousClose || result.meta.chartPreviousClose;
+  if (!close) throw new Error('Invalid price');
+  const ch = prevClose ? ((close - prevClose) / prevClose * 100) : 0;
+  const closes  = result.indicators?.quote?.[0]?.close || [];
+  const history = closes.filter(v => v !== null && Number.isFinite(v));
   return { p: close, ch, history };
 }
 
-async function main() {
-  const apiKey  = process.env.TWELVE_DATA_KEY;
-  if (!apiKey) throw new Error('TWELVE_DATA_KEY env var not set');
+async function fetchLJSEPriceList() {
+  // Try last 5 days to handle weekends and public holidays
+  for (let daysBack = 0; daysBack <= 4; daysBack++) {
+    const d = new Date();
+    d.setDate(d.getDate() - daysBack);
+    const dateStr = d.toISOString().slice(0, 10);
+    const url = `https://rest.ljse.si/web/Bvt9fe2peQ7pwpyYqODM/price-list/XLJU/${dateStr}/json`;
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; nyx-bot/1.0)' },
+    });
+    if (!res.ok) continue;
+    const data = await res.json();
+    if (data.securities?.length) {
+      console.log(`✓ LJSE: ${data.securities.length} securities (${dateStr})`);
+      return data.securities;
+    }
+  }
+  throw new Error('No LJSE data found in last 5 days');
+}
 
+function parseLJSEStock(symbol, securities) {
+  const sec = securities.find(s => s.symbol === symbol);
+  if (!sec) throw new Error(`${symbol} not found in LJSE data`);
+  const p  = parseFloat(sec.close_price);
+  const ch = parseFloat(sec.change_percent) || 0;
+  if (isNaN(p)) throw new Error('Invalid price');
+  return { p, ch };
+}
+
+async function main() {
   const outPath = path.join(__dirname, '../../data/funds.json');
 
   let existingData = { prices: {}, history: {} };
@@ -83,6 +114,7 @@ async function main() {
   const prices  = { ...existingData.prices  || {} };
   const history = { ...existingData.history || {} };
 
+  // Slovenian fund NAVs
   for (const fund of FUNDS) {
     try {
       prices[fund.id] = await fetchFund(fund);
@@ -92,14 +124,34 @@ async function main() {
     }
   }
 
-  for (const asset of TD_ASSETS) {
+  // ETFs via Yahoo Finance
+  for (const asset of YAHOO_ASSETS) {
     try {
-      const result = await fetchTwelveDataAsset(asset, apiKey);
+      const result = await fetchYahooAsset(asset);
       prices[asset.id]  = { p: result.p, ch: result.ch };
       if (result.history.length) history[asset.id] = result.history;
       console.log(`✓ ${asset.id}: ${result.p} (${result.ch >= 0 ? '+' : ''}${result.ch.toFixed(2)}%)`);
     } catch (e) {
       console.error(`✗ ${asset.id}: ${e.message} — keeping last known`);
+    }
+  }
+
+  // Slovenian stocks via LJSE REST API
+  let ljseSecurities = null;
+  try {
+    ljseSecurities = await fetchLJSEPriceList();
+  } catch (e) {
+    console.error(`✗ LJSE: ${e.message}`);
+  }
+
+  for (const stock of LJSE_STOCKS) {
+    try {
+      if (!ljseSecurities) throw new Error('no LJSE data available');
+      const result = parseLJSEStock(stock.symbol, ljseSecurities);
+      prices[stock.id] = { p: result.p, ch: result.ch };
+      console.log(`✓ ${stock.id}: ${result.p} (${result.ch >= 0 ? '+' : ''}${result.ch.toFixed(2)}%)`);
+    } catch (e) {
+      console.error(`✗ ${stock.id}: ${e.message} — keeping last known`);
     }
   }
 
