@@ -157,6 +157,7 @@ function showAuth() {
 function hideAuth() {
   document.getElementById('authOverlay').style.display = 'none';
   document.getElementById('nyxWrapper').style.display  = 'flex';
+  requestAnimationFrame(() => switchTab('portfolio', false));
 }
 
 function toggleAuthMode() {
