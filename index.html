@@ -59,16 +59,6 @@
         <div class="divider"></div>
 
         <div id="assetList"></div>
-
-        <button class="add-block-btn" onclick="openAddAsset()">+ add asset</button>
-
-        <div class="statusbar">
-          <div class="status-l">
-            <div class="pulse"></div>
-            <span id="statusTxt">initializing</span>
-          </div>
-          <div class="status-r" onclick="fetchAll()">refresh</div>
-        </div>
       </div>
 
       <!-- TAB: ANALYTICS -->
@@ -87,6 +77,17 @@
       </div>
 
     </div>
+
+    <!-- STICKY FOOTER -->
+    <div class="footbar">
+      <div class="foot-l">
+        <div class="pulse"></div>
+        <span id="statusTxt">—</span>
+      </div>
+      <button class="foot-add" onclick="openAddAsset()">+ ADD ASSET</button>
+      <div class="foot-r" onclick="fetchAll()">refresh</div>
+    </div>
+
   </div>
 
 </div>
