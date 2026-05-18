@@ -227,8 +227,7 @@ function switchTab(id, animate = true) {
   const ind = document.querySelector('.tab-indicator');
   if (ind) {
     if (!animate) ind.style.transition = 'none';
-    ind.style.left  = btn.offsetLeft + 'px';
-    ind.style.width = btn.offsetWidth + 'px';
+    ind.style.left = (btn.offsetLeft + btn.offsetWidth / 2 - 2) + 'px';
     if (!animate) requestAnimationFrame(() => { ind.style.transition = ''; });
   }
 }

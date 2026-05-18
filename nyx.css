@@ -42,37 +42,35 @@ body {
 .tab-nav {
   position: relative;
   display: flex;
-  gap: 2px;
-  background: #111;
-  border-radius: 100px;
-  padding: 3px;
+  gap: 24px;
+  background: none;
+  padding: 0 0 10px;
 }
 
 .tab-indicator {
   position: absolute;
-  top: 3px;
-  bottom: 3px;
-  background: #222;
-  border-radius: 100px;
+  bottom: 0;
+  width: 4px;
+  height: 4px;
+  background: #fff;
+  border-radius: 50%;
   pointer-events: none;
-  transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: left 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .tab-btn {
   position: relative;
   background: none;
   border: none;
-  color: var(--text-dim);
+  color: #fff;
   font-family: var(--f);
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.03em;
-  padding: 7px 20px;
-  border-radius: 100px;
+  padding: 0;
   cursor: pointer;
-  transition: color 0.2s;
 }
-.tab-btn:hover { color: #bbb; }
+.tab-btn:hover { color: #fff; }
 .tab-btn.active { color: #fff; }
 
 .tab-pane { display: none; }
@@ -85,10 +83,10 @@ body {
 
 /* ── WINDOW ── */
 .win {
-  background: #141414;
+  background: #000;
   border-radius: 16px;
   overflow: hidden;
-  box-shadow: 0 40px 100px rgba(0,0,0,0.8);
+  box-shadow: 0 40px 100px rgba(0,0,0,0.9);
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -121,7 +119,7 @@ body {
 
 .win-title {
   position: absolute; left: 50%; transform: translateX(-50%);
-  font-size: 11px; font-weight: 500; color: var(--text-faint);
+  font-size: 11px; font-weight: 500; color: #fff;
   letter-spacing: 0.06em; pointer-events: none; text-transform: uppercase;
 }
 
@@ -151,22 +149,22 @@ body {
   align-items: center;
   padding: 12px 28px;
 }
-.foot-l { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--text-faint); min-width: 0; }
+.foot-l { display: flex; align-items: center; gap: 8px; font-size: 11px; color: #fff; min-width: 0; }
 .foot-l span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .foot-add {
   background: none; border: none; cursor: pointer;
   font-family: var(--f); font-size: 11px; font-weight: 500;
-  color: var(--text-faint); letter-spacing: 0.04em;
-  padding: 0 12px; transition: color 0.2s; white-space: nowrap;
+  color: #fff; letter-spacing: 0.04em;
+  padding: 0 12px; transition: opacity 0.2s; white-space: nowrap;
 }
-.foot-add:hover { color: var(--text-dim); }
+.foot-add:hover { opacity: 0.6; }
 .foot-r {
   justify-self: end;
-  color: var(--text-faint); cursor: pointer; transition: color 0.2s;
+  color: #fff; cursor: pointer; transition: opacity 0.2s;
   font-size: 11px; font-weight: 500; letter-spacing: 0.04em;
 }
 .foot-r:hover { color: var(--text-dim); }
-.pulse { width: 5px; height: 5px; border-radius: 50%; background: #444; animation: pulse 3s ease-in-out infinite; }
+.pulse { width: 5px; height: 5px; border-radius: 50%; background: #fff; animation: pulse 3s ease-in-out infinite; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.15} }
 
 /* ── PORTFOLIO ── */
@@ -196,7 +194,7 @@ body {
 /* ── ANALYTICS ── */
 .analytics-chart { margin: 10px 0 8px; height: 80px; }
 .analytics-chart svg { display: block; width: 100%; height: 100%; }
-.analytics-chart .spark-bg   { fill: #181818; }
+.analytics-chart .spark-bg   { fill: #000; }
 .analytics-chart .spark-line { fill: none; stroke: #fff; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 .analytics-chart .spark-area { fill: rgba(255,255,255,0.04); }
 
@@ -208,7 +206,7 @@ body {
   padding: 11px 0;
 }
 .alloc-label { font-size: 11px; font-weight: 500; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.alloc-bar-track { height: 1px; background: #2a2a2a; border-radius: 1px; overflow: hidden; }
+.alloc-bar-track { height: 1px; background: #222; border-radius: 1px; overflow: hidden; }
 .alloc-bar-fill  { height: 100%; background: #fff; border-radius: 1px; transition: width 0.8s cubic-bezier(0.16,1,0.3,1); }
 .alloc-pct { font-size: 11px; font-weight: 500; color: var(--text); text-align: right; }
 .alloc-val { font-size: 11px; color: var(--text-dim); text-align: right; }
@@ -229,7 +227,7 @@ body {
 }
 .overlay.on { display: flex; }
 .modal {
-  background: #141414;
+  background: #000;
   border-radius: 16px;
   width: 340px;
   padding: 28px;
@@ -240,7 +238,7 @@ body {
 .field label { display: block; font-size: 10px; font-weight: 500; color: var(--text-faint); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 8px; }
 .field input {
   width: 100%;
-  background: #1e1e1e;
+  background: #000;
   border: none;
   border-radius: 8px;
   color: var(--text);
@@ -251,12 +249,12 @@ body {
   outline: none;
   transition: background 0.2s;
 }
-.field input:focus { background: #252525; }
+.field input:focus { background: #111; }
 .field .hint { font-size: 10px; color: var(--text-faint); margin-top: 6px; }
 .modal-btns { display: flex; gap: 8px; margin-top: 20px; }
 .btn {
   flex: 1;
-  background: #1e1e1e;
+  background: #000;
   border: none;
   border-radius: 8px;
   color: var(--text-dim);
@@ -268,7 +266,7 @@ body {
   cursor: pointer;
   transition: all 0.15s;
 }
-.btn:hover { background: #252525; color: var(--text); }
+.btn:hover { background: #111; color: var(--text); }
 .btn.primary { background: #fff; color: #000; }
 .btn.primary:hover { background: #e8e8e8; }
 .btn.danger { color: rgba(255,64,52,0.6); }
@@ -330,7 +328,7 @@ body {
 .auth-body { display: flex; flex-direction: column; gap: 8px; }
 .auth-input {
   width: 100%;
-  background: #1e1e1e;
+  background: #000;
   border: none;
   border-radius: 6px;
   color: var(--text);
@@ -341,7 +339,7 @@ body {
   outline: none;
   transition: background 0.2s;
 }
-.auth-input:focus { background: #252525; }
+.auth-input:focus { background: #111; }
 .auth-input::placeholder { color: var(--text-faint); }
 .auth-submit { width: 100%; padding: 10px; margin-top: 2px; font-size: 11px; }
 .auth-error {
@@ -364,11 +362,11 @@ body {
   margin-left: auto;
   font-size: 10px;
   font-weight: 500;
-  color: var(--text-faint);
+  color: #fff;
   cursor: pointer;
-  transition: color 0.2s;
+  transition: opacity 0.2s;
 }
-.signout-btn:hover { color: var(--text-dim); }
+.signout-btn:hover { opacity: 0.6; }
 
 /* ── RESPONSIVE ── */
 @media (max-width: 600px) {
