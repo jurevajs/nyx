@@ -312,6 +312,11 @@ function renderPortfolio() {
 
 // ── VAULT / DCA LOG ──────────────────────────────────────────
 const PHASE1_TOTAL = 9702;
+const VAULT_ASSETS = [
+  { id:'vwce', name:'VWCE',            sub:'FTSE All-World' },
+  { id:'tri',  name:'Triglav DMT EUR', sub:'Triglav Investments' },
+  { id:'inf',  name:'Infond Globalni', sub:'Infond' },
+];
 
 function taxFreeDate(dateStr) {
   const d = new Date(dateStr);
@@ -389,31 +394,47 @@ function renderVault() {
     lotEl.innerHTML = '<div class="portfolio-empty">no purchases logged yet</div>';
     return;
   }
-  lotEl.innerHTML = [...dcaLog].reverse().map(lot => {
-    const dateStr = new Date(lot.date + 'T00:00:00').toLocaleDateString('sl-SI', { day:'2-digit', month:'short', year:'numeric' });
-    const tfYear  = new Date(lot.date + 'T00:00:00').getFullYear() + 15;
-    const cd      = countdown(lot.date);
-    return `<div class="lot-row">
-      <div class="lot-left">
-        <div class="lot-date">${dateStr}</div>
-        <div class="lot-meta">${fn(lot.units, 4)} u · ${fe(lot.price_per_unit)}/u${lot.is_phase1 ? ' · p1' : ''}</div>
-      </div>
-      <div class="lot-right">
-        <div class="lot-amt">${fe(lot.amount_eur, 0)}</div>
-        <div class="lot-tf">${cd} · ${tfYear}</div>
-      </div>
-      <button class="lot-del" onclick="deleteLot(${lot.id})" title="delete">×</button>
-    </div>`;
-  }).join('');
+  let lotsHtml = '';
+  VAULT_ASSETS.forEach(va => {
+    const lots = [...dcaLog].filter(l => l.asset_id === va.id).reverse();
+    if (!lots.length) return;
+    lotsHtml += `<div class="lot-asset-label">${va.name.toUpperCase()}</div>`;
+    lotsHtml += lots.map(lot => {
+      const dateStr = new Date(lot.date + 'T00:00:00').toLocaleDateString('sl-SI', { day:'2-digit', month:'short', year:'numeric' });
+      const tfYear  = new Date(lot.date + 'T00:00:00').getFullYear() + 15;
+      const cd      = countdown(lot.date);
+      return `<div class="lot-row">
+        <div class="lot-left">
+          <div class="lot-date">${dateStr}</div>
+          <div class="lot-meta">${fn(lot.units, 4)} u · ${fe(lot.price_per_unit)}/u${lot.is_phase1 ? ' · p1' : ''}</div>
+        </div>
+        <div class="lot-right">
+          <div class="lot-amt">${fe(lot.amount_eur, 0)}</div>
+          <div class="lot-tf">${cd} · ${tfYear}</div>
+        </div>
+        <button class="lot-del" onclick="deleteLot(${lot.id})" title="delete">×</button>
+      </div>`;
+    }).join('');
+  });
+  lotEl.innerHTML = lotsHtml;
 }
 
 function openLogBuy() {
+  document.getElementById('logAsset').value  = 'vwce';
   document.getElementById('logDate').value   = new Date().toISOString().slice(0, 10);
   document.getElementById('logAmount').value = '';
   document.getElementById('logUnits').value  = '';
   document.getElementById('logPrice').value  = PX['vwce']?.p?.toFixed(2) || '';
   document.getElementById('logOv').classList.add('on');
   setTimeout(() => document.getElementById('logAmount').focus(), 50);
+}
+
+function logAssetChanged() {
+  const id = document.getElementById('logAsset').value;
+  const p  = PX[id]?.p;
+  document.getElementById('logPrice').value  = p ? p.toFixed(2) : '';
+  document.getElementById('logUnits').value  = '';
+  document.getElementById('logAmount').value = '';
 }
 
 function closeLogBuy() { document.getElementById('logOv').classList.remove('on'); }
@@ -436,14 +457,15 @@ async function saveLogBuy() {
   const price  = parseFloat(document.getElementById('logPrice').value);
   if (!date || !(amount > 0) || !(units > 0)) return;
   const pricePerUnit = price > 0 ? price : amount / units;
+  const assetId  = document.getElementById('logAsset').value;
   const d        = new Date(date + 'T00:00:00');
-  const isPhase1 = d.getFullYear() === 2026 && d.getMonth() >= 5 && d.getMonth() <= 10;
+  const isPhase1 = assetId === 'vwce' && d.getFullYear() === 2026 && d.getMonth() >= 5 && d.getMonth() <= 10;
 
   const btn = document.getElementById('logSaveBtn');
   btn.textContent = '…'; btn.disabled = true;
   try {
     const { data, error } = await sb.from('dca_log').insert({
-      user_id: currentUser.id, asset_id: 'vwce',
+      user_id: currentUser.id, asset_id: assetId,
       date, amount_eur: amount, units, price_per_unit: pricePerUnit, is_phase1,
     }).select().single();
     if (error) throw error;

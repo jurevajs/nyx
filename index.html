@@ -115,7 +115,15 @@
 <!-- LOG BUY MODAL -->
 <div class="overlay" id="logOv">
   <div class="modal">
-    <div class="modal-title">LOG PURCHASE — VWCE</div>
+    <div class="modal-title">LOG PURCHASE</div>
+    <div class="field">
+      <label>ASSET</label>
+      <select id="logAsset" class="auth-input" onchange="logAssetChanged()">
+        <option value="vwce">VWCE — FTSE All-World</option>
+        <option value="tri">Triglav DMT EUR</option>
+        <option value="inf">Infond Globalni</option>
+      </select>
+    </div>
     <div class="field">
       <label>DATE</label>
       <input type="date" id="logDate">

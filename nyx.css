@@ -342,6 +342,23 @@ body {
 .vsumm-val.up { color: var(--up); }
 .vsumm-val.dn { color: var(--dn); }
 
+.lot-asset-label {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-faint);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding-top: 20px;
+  padding-bottom: 4px;
+}
+.lot-asset-label:first-child { padding-top: 0; }
+
+select.auth-input {
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+}
+
 .lot-row {
   display: flex;
   align-items: center;
