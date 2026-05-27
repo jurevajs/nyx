@@ -280,7 +280,7 @@ const gP  = a => PX[a.id]?.p  || 0;
 const gCh = a => PX[a.id]?.ch || 0;
 const gV  = a => gP(a) * a.qty;
 
-function fe(v, d=2) { return '€ ' + Number(v||0).toLocaleString('de-DE', {minimumFractionDigits:d, maximumFractionDigits:d}); }
+function fe(v, d=2) { return Number(v||0).toLocaleString('de-DE', {minimumFractionDigits:d, maximumFractionDigits:d}) + '€'; }
 function fp(v)      { return (v>=0?'+':'')+Number(v||0).toFixed(2)+'%'; }
 function fn(v, d=4) { return Number(v||0).toLocaleString('de-DE', {maximumFractionDigits:d}); }
 function setStatus(t) { const el = document.getElementById('statusTxt'); if (el) el.textContent = t; }
