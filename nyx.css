@@ -339,6 +339,8 @@ body {
   margin-bottom: 4px;
 }
 .vsumm-val { font-size: 13px; font-weight: 400; color: var(--text); }
+.vsumm-val.up { color: var(--up); }
+.vsumm-val.dn { color: var(--dn); }
 
 select.auth-input {
   appearance: none;
