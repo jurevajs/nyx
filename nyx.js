@@ -313,9 +313,9 @@ function renderPortfolio() {
 // ── VAULT / DCA LOG ──────────────────────────────────────────
 const PHASE1_TOTAL = 9702;
 const VAULT_ASSETS = [
-  { id:'vwce', name:'VWCE',            sub:'FTSE All-World' },
-  { id:'tri',  name:'Triglav DMT EUR', sub:'Triglav Investments' },
-  { id:'inf',  name:'Infond Globalni', sub:'Infond' },
+  { id:'vwce', name:'VWCE',            sub:'FTSE All-World',      ter:0.0019 },
+  { id:'tri',  name:'Triglav DMT EUR', sub:'Triglav Investments', ter:0.0076 },
+  { id:'inf',  name:'Infond Globalni', sub:'Infond',              ter:0.0216 },
 ];
 
 function taxFreeDate(dateStr) {
@@ -408,6 +408,36 @@ function openLotModal(assetId) {
       <button class="lot-del" onclick="deleteLot(${lot.id},'${assetId}')" title="delete">×</button>
     </div>`;
   }).join('');
+  // Fee analysis for active funds
+  const va = VAULT_ASSETS.find(v => v.id === assetId);
+  if (va && va.ter > 0.0019 && lots.length) {
+    const invested  = lots.reduce((s, l) => s + Number(l.amount_eur), 0);
+    const units     = lots.reduce((s, l) => s + Number(l.units), 0);
+    const currVal   = units * (PX[assetId]?.p || 0);
+    const firstDate = new Date(lots[lots.length - 1].date + 'T00:00:00');
+    const yearsHeld = (Date.now() - firstDate) / 31557600000;
+    const avgVal    = (invested + (currVal || invested)) / 2;
+    const feesPaid  = avgVal * va.ter * yearsHeld;
+    const vwceFees  = avgVal * 0.0019 * yearsHeld;
+    const feeDrag   = feesPaid - vwceFees;
+    const annualDrag = (currVal || invested) * (va.ter - 0.0019);
+    const gain      = currVal > 0 ? currVal - invested : 0;
+    const taxCost   = gain > 0 ? gain * 0.25 : 0;
+    const breakEven = annualDrag > 0 && taxCost > 0 ? taxCost / annualDrag : null;
+
+    listEl.innerHTML += `<div class="fee-analysis">
+      <div class="label" style="margin:20px 0 12px">FEE ANALYSIS · ${(va.ter*100).toFixed(2)}% TER</div>
+      <div class="vsumm-grid">
+        <div><div class="vsumm-label">fees paid est.</div><div class="vsumm-val dn">~${fe(feesPaid, 0)}</div></div>
+        <div><div class="vsumm-label">vs vwce</div><div class="vsumm-val dn">~${fe(vwceFees, 0)}</div></div>
+        <div><div class="vsumm-label">drag</div><div class="vsumm-val dn">~${fe(feeDrag, 0)}</div></div>
+        <div><div class="vsumm-label">annual drag</div><div class="vsumm-val dn">~${fe(annualDrag, 0)}/yr</div></div>
+        <div><div class="vsumm-label">exit tax</div><div class="vsumm-val">${taxCost > 0 ? fe(taxCost, 0) : '—'}</div></div>
+        <div><div class="vsumm-label">break-even</div><div class="vsumm-val ${breakEven && breakEven < 4 ? 'dn' : ''}">${breakEven ? breakEven.toFixed(1) + 'y' : '—'}</div></div>
+      </div>
+    </div>`;
+  }
+
   document.getElementById('lotOv').classList.add('on');
 }
 

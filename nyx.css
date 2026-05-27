@@ -321,6 +321,8 @@ body {
 .exm-bar-fill.over { background: var(--dn); }
 .gain-total { font-size: 10px; color: var(--text-faint); padding-top: 10px; text-align: right; }
 
+.fee-analysis { border-top: 1px solid #111; }
+
 .vault-card {
   padding: 16px 0;
   border-top: 1px solid #111;
