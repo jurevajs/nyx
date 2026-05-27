@@ -27,7 +27,6 @@ let AS = []; // user's active portfolio — built from CATALOG + Supabase holdin
 let PX = {};
 let snapshots = [];
 let dcaLog = [];
-let expandedAsset = null;
 
 // ── STORAGE ──────────────────────────────────────────────────
 async function saveHoldings() {
@@ -348,11 +347,6 @@ async function loadDcaLog() {
   } catch(e) { console.warn('dca_log load', e); }
 }
 
-function toggleVaultAsset(id) {
-  expandedAsset = expandedAsset === id ? null : id;
-  renderVault();
-}
-
 function renderVault() {
   const el = document.getElementById('vaultContent');
   if (!el) return;
@@ -370,57 +364,55 @@ function renderVault() {
     const invested = lots.reduce((s, l) => s + Number(l.amount_eur), 0);
     const units    = lots.reduce((s, l) => s + Number(l.units), 0);
     const avgPrice = units > 0 ? invested / units : 0;
-    const currPx   = PX[va.id]?.p || 0;
-    const currVal  = units * currPx;
+    const currVal  = units * (PX[va.id]?.p || 0);
     const pl       = currVal > 0 ? currVal - invested : null;
     const plClass  = pl !== null ? (pl >= 0 ? 'up' : 'dn') : 'fl';
     const plStr    = pl !== null ? (pl >= 0 ? '+' : '') + fe(pl) : '—';
-    const isExp    = expandedAsset === va.id;
 
-    html += `<div class="vault-card${isExp ? ' expanded' : ''}" onclick="toggleVaultAsset('${va.id}')">
-      <div class="vault-card-head">
-        <div>
-          <div class="a-name">${va.name}</div>
-          <div class="a-sub">${va.sub}</div>
-        </div>
-        <div class="vault-card-right">
-          <div class="a-val">${currVal > 0 ? fe(currVal, 0) : fe(invested, 0)}</div>
-          <div class="a-ch ${plClass}">${plStr}</div>
-        </div>
-      </div>`;
-
-    if (isExp) {
-      html += `<div class="vault-detail" onclick="event.stopPropagation()">
-        <div class="vsumm-grid">
-          <div><div class="vsumm-label">invested</div><div class="vsumm-val">${fe(invested, 0)}</div></div>
-          <div><div class="vsumm-label">units</div><div class="vsumm-val">${fn(units, 4)}</div></div>
-          <div><div class="vsumm-label">avg price</div><div class="vsumm-val">${fe(avgPrice)}</div></div>
-        </div>`;
-
-      [...lots].reverse().forEach(lot => {
-        const dateStr = new Date(lot.date + 'T00:00:00').toLocaleDateString('sl-SI', { day:'2-digit', month:'short', year:'numeric' });
-        const tfYear  = new Date(lot.date + 'T00:00:00').getFullYear() + 15;
-        const cd      = countdown(lot.date);
-        html += `<div class="lot-row">
-          <div class="lot-left">
-            <div class="lot-date">${dateStr}</div>
-            <div class="lot-meta">${fn(lot.units, 4)} u · ${fe(lot.price_per_unit)}/u</div>
-          </div>
-          <div class="lot-right">
-            <div class="lot-amt">${fe(lot.amount_eur, 0)}</div>
-            <div class="lot-tf">${cd} · ${tfYear}</div>
-          </div>
-          <button class="lot-del" onclick="deleteLot(${lot.id})" title="delete">×</button>
-        </div>`;
-      });
-
-      html += `</div>`;
-    }
-
-    html += `</div>`;
+    html += `<div class="vault-card" onclick="openLotModal('${va.id}')">
+      <div class="a-name">${va.name}</div>
+      <div class="a-sub" style="margin-bottom:14px">${va.sub}</div>
+      <div class="vsumm-grid">
+        <div><div class="vsumm-label">invested</div><div class="vsumm-val">${fe(invested, 0)}</div></div>
+        <div><div class="vsumm-label">units</div><div class="vsumm-val">${fn(units, 4)}</div></div>
+        <div><div class="vsumm-label">avg price</div><div class="vsumm-val">${fe(avgPrice)}</div></div>
+        <div><div class="vsumm-label">value</div><div class="vsumm-val">${currVal > 0 ? fe(currVal, 0) : '—'}</div></div>
+        <div><div class="vsumm-label">p/l</div><div class="vsumm-val ${plClass}">${plStr}</div></div>
+        <div></div>
+      </div>
+    </div>`;
   });
 
   el.innerHTML = html;
+}
+
+function openLotModal(assetId) {
+  const va = VAULT_ASSETS.find(v => v.id === assetId);
+  if (!va) return;
+  document.getElementById('lotOvTitle').textContent = va.name.toUpperCase();
+  const lots = [...dcaLog].filter(l => l.asset_id === assetId).reverse();
+  const listEl = document.getElementById('lotOvList');
+  listEl.innerHTML = lots.map(lot => {
+    const dateStr = new Date(lot.date + 'T00:00:00').toLocaleDateString('sl-SI', { day:'2-digit', month:'short', year:'numeric' });
+    const tfYear  = new Date(lot.date + 'T00:00:00').getFullYear() + 15;
+    const cd      = countdown(lot.date);
+    return `<div class="lot-row">
+      <div class="lot-left">
+        <div class="lot-date">${dateStr}</div>
+        <div class="lot-meta">${fn(lot.units, 4)} u · ${fe(lot.price_per_unit)}/u</div>
+      </div>
+      <div class="lot-right">
+        <div class="lot-amt">${fe(lot.amount_eur, 0)}</div>
+        <div class="lot-tf">${cd} · ${tfYear}</div>
+      </div>
+      <button class="lot-del" onclick="deleteLot(${lot.id},'${assetId}')" title="delete">×</button>
+    </div>`;
+  }).join('');
+  document.getElementById('lotOv').classList.add('on');
+}
+
+function closeLotModal() {
+  document.getElementById('lotOv').classList.remove('on');
 }
 
 function openLogBuy() {
@@ -485,13 +477,16 @@ async function saveLogBuy() {
   }
 }
 
-async function deleteLot(id) {
-  if (!confirm('Delete this purchase entry?')) return;
+async function deleteLot(id, assetId) {
+  if (!confirm('Delete this purchase?')) return;
   try {
     const { error } = await sb.from('dca_log').delete().eq('id', id).eq('user_id', currentUser.id);
     if (error) throw error;
     dcaLog = dcaLog.filter(l => l.id !== id);
     renderVault();
+    const remaining = dcaLog.filter(l => l.asset_id === assetId);
+    if (remaining.length) openLotModal(assetId);
+    else closeLotModal();
   } catch(e) { console.error('delete lot', e); alert(e.message); }
 }
 
@@ -590,6 +585,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('ov')?.addEventListener('click',    e => { if (e.target === e.currentTarget) closeM(); });
   document.getElementById('addOv')?.addEventListener('click', e => { if (e.target === e.currentTarget) closeAddAsset(); });
   document.getElementById('logOv')?.addEventListener('click', e => { if (e.target === e.currentTarget) closeLogBuy(); });
+  document.getElementById('lotOv')?.addEventListener('click', e => { if (e.target === e.currentTarget) closeLotModal(); });
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') closeM();
     if (e.key === 'Enter' && document.getElementById('authOverlay').style.display !== 'none') authSubmit();

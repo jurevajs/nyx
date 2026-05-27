@@ -311,25 +311,17 @@ body {
 
 /* ── VAULT ── */
 .vault-card {
-  padding: 13px 0;
+  padding: 16px 0;
   border-top: 1px solid #111;
   cursor: pointer;
   transition: opacity 0.15s;
 }
 .vault-card:first-child { border-top: none; }
-.vault-card:not(.expanded):hover { opacity: 0.45; }
+.vault-card:hover { opacity: 0.45; }
 
-.vault-card-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.vault-card-right { text-align: right; }
-
-.vault-detail {
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid #111;
+.lot-ov-list {
+  max-height: 55vh;
+  overflow-y: auto;
 }
 
 .vsumm-grid {
