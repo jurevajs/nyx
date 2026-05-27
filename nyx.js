@@ -308,8 +308,8 @@ function renderPortfolio() {
 }
 
 // ── ANALYTICS ────────────────────────────────────────────────
-const CAT_ORDER  = ['crypto','etf','stock','fund','cash'];
-const CAT_LABELS = { crypto:'CRYPTO', etf:'ETF', stock:'STOCK', fund:'FUND', cash:'CASH' };
+const CAT_ORDER  = ['crypto','etf','fund','cash'];
+const CAT_LABELS = { crypto:'CRYPTO', etf:'ETF', fund:'FUND', cash:'CASH' };
 
 function renderSparkline(elId, values) {
   const el = document.getElementById(elId); if (!el) return;
@@ -455,7 +455,6 @@ document.addEventListener('DOMContentLoaded', () => {
   requestAnimationFrame(() => switchTab('portfolio', false));
 
   sb.auth.onAuthStateChange(async (event, session) => {
-    console.log('[NYX] auth event:', event, '| user:', session?.user?.email || null);
     currentUser = session?.user || null;
 
     if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && currentUser) {

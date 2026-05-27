@@ -3,7 +3,6 @@
 * { margin:0; padding:0; box-sizing:border-box; }
 
 :root {
-  --bg:  #000;
   --text: #fff;
   --text-dim: #888;
   --text-faint: #444;
@@ -30,8 +29,6 @@ body {
 
 /* ── OUTER WRAPPER ── */
 .nyx-wrapper {
-  position: relative;
-  z-index: 3;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -70,8 +67,7 @@ body {
   padding: 0;
   cursor: pointer;
 }
-.tab-btn:hover { color: #fff; }
-.tab-btn.active { color: #fff; }
+.tab-btn.active { opacity: 1; }
 
 .tab-pane { display: none; }
 .tab-pane.active { display: block; animation: tabIn 0.18s ease; }
@@ -163,7 +159,7 @@ body {
   color: #fff; cursor: pointer; transition: opacity 0.2s;
   font-size: 11px; font-weight: 500; letter-spacing: 0.04em;
 }
-.foot-r:hover { color: var(--text-dim); }
+.foot-r:hover { opacity: 0.6; }
 .pulse { width: 5px; height: 5px; border-radius: 50%; background: #fff; animation: pulse 3s ease-in-out infinite; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.15} }
 
@@ -402,7 +398,6 @@ body {
   .alloc-label { font-size: 10px; }
   .alloc-pct { font-size: 10px; }
   .alloc-val { font-size: 10px; }
-  .footbar { grid-template-columns: 1fr auto 1fr; }
   .foot-add { font-size: 10px; padding: 0 8px; }
   .foot-l { font-size: 10px; }
   .foot-r { font-size: 10px; }
