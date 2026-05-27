@@ -309,6 +309,68 @@ body {
 .aa-sub  { font-size: 10px; color: var(--text-faint); margin-top: 2px; }
 .aa-plus { font-size: 18px; font-weight: 300; color: var(--text-faint); padding-left: 14px; line-height: 1; }
 
+/* ── VAULT ── */
+.vault-bar-track {
+  height: 2px;
+  background: #1a1a1a;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+.vault-bar-fill {
+  height: 100%;
+  background: #fff;
+  border-radius: 2px;
+  transition: width 0.8s cubic-bezier(0.16,1,0.3,1);
+}
+.vault-phase-meta { font-size: 11px; color: var(--text-faint); }
+
+.vsumm-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 18px 0;
+}
+.vsumm-label {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-faint);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.vsumm-val { font-size: 14px; font-weight: 300; color: var(--text); }
+.vsumm-val.up { color: var(--up); }
+.vsumm-val.dn { color: var(--dn); }
+
+.lot-row {
+  display: flex;
+  align-items: center;
+  padding: 12px 0;
+  border-top: 1px solid #111;
+}
+.lot-row:first-child { border-top: none; }
+.lot-left { flex: 1; min-width: 0; }
+.lot-date { font-size: 12px; font-weight: 500; color: var(--text); }
+.lot-meta { font-size: 11px; color: var(--text-faint); margin-top: 2px; }
+.lot-right { text-align: right; margin-right: 8px; flex-shrink: 0; }
+.lot-amt { font-size: 12px; font-weight: 500; color: var(--text); }
+.lot-tf { font-size: 11px; color: var(--text-faint); margin-top: 2px; }
+.lot-del {
+  background: none; border: none;
+  color: var(--text-faint); font-size: 16px;
+  cursor: pointer; padding: 0; opacity: 0.3;
+  transition: opacity 0.2s; line-height: 1; flex-shrink: 0;
+}
+.lot-del:hover { opacity: 1; color: var(--dn); }
+
+.vault-log-btn {
+  background: none; border: none; cursor: pointer;
+  font-family: var(--f); font-size: 11px; font-weight: 500;
+  color: var(--text-faint); letter-spacing: 0.04em;
+  padding: 18px 0 4px; transition: color 0.2s;
+}
+.vault-log-btn:hover { color: var(--text); }
+
 /* ── SCROLLBAR ── */
 ::-webkit-scrollbar { width: 0; height: 0; }
 

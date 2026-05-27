@@ -37,7 +37,7 @@
   <nav class="tab-nav">
     <div class="tab-indicator"></div>
     <button class="tab-btn active" data-tab="portfolio" onclick="switchTab('portfolio')">Portfolio</button>
-    <button class="tab-btn" data-tab="analytics" onclick="switchTab('analytics')">Analytics</button>
+    <button class="tab-btn" data-tab="vault" onclick="switchTab('vault')">Vault</button>
   </nav>
 
   <div class="win win-main">
@@ -61,18 +61,23 @@
         <div id="assetList"></div>
       </div>
 
-      <!-- TAB: ANALYTICS -->
-      <div class="tab-pane" id="tab-analytics">
+      <!-- TAB: VAULT -->
+      <div class="tab-pane" id="tab-vault">
 
-        <div class="label">NET WORTH HISTORY</div>
-        <div class="analytics-chart" id="analyticsChart">
-          <div class="news-loading">building history…</div>
-        </div>
+        <div class="label">PHASE 1 — TRIGLAV DEPLOYMENT</div>
+        <div class="vault-bar-track"><div class="vault-bar-fill" id="vaultPhaseFill"></div></div>
+        <div class="vault-phase-meta" id="vaultPhaseMeta">—</div>
 
         <div class="divider"></div>
 
-        <div class="label">ALLOCATION</div>
-        <div id="allocList"></div>
+        <div class="vault-summary" id="vaultSummary"></div>
+
+        <div class="divider"></div>
+
+        <div class="label">PURCHASES</div>
+        <div id="lotList"></div>
+
+        <button class="vault-log-btn" onclick="openLogBuy()">+ log purchase</button>
 
       </div>
 
@@ -103,6 +108,34 @@
     <div class="add-asset-list" id="catalogList"></div>
     <div class="modal-btns" style="margin-top:14px">
       <button class="btn" onclick="closeAddAsset()">close</button>
+    </div>
+  </div>
+</div>
+
+<!-- LOG BUY MODAL -->
+<div class="overlay" id="logOv">
+  <div class="modal">
+    <div class="modal-title">LOG PURCHASE — VWCE</div>
+    <div class="field">
+      <label>DATE</label>
+      <input type="date" id="logDate">
+    </div>
+    <div class="field">
+      <label>AMOUNT INVESTED (€)</label>
+      <input type="number" id="logAmount" step="any" min="0" placeholder="0.00" oninput="logCalc('price')">
+    </div>
+    <div class="field">
+      <label>UNITS PURCHASED</label>
+      <input type="number" id="logUnits" step="any" min="0" placeholder="0.0000" oninput="logCalc('price')">
+    </div>
+    <div class="field">
+      <label>PRICE PER UNIT (€)</label>
+      <input type="number" id="logPrice" step="any" min="0" placeholder="auto" oninput="logCalc('units')">
+      <div class="hint">auto-filled · or enter price to compute units</div>
+    </div>
+    <div class="modal-btns">
+      <button class="btn" onclick="closeLogBuy()">cancel</button>
+      <button class="btn primary" id="logSaveBtn" onclick="saveLogBuy()">save</button>
     </div>
   </div>
 </div>

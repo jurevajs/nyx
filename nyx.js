@@ -20,9 +20,13 @@ const CATALOG = [
   { id:'chk',  name:'Checking',         sub:'EUR',                cat:'cash',  src:'manual', manual:1 },
 ];
 
+const CAT_ORDER  = ['crypto','etf','fund','cash'];
+const CAT_LABELS = { crypto:'CRYPTO', etf:'ETF', fund:'FUND', cash:'CASH' };
+
 let AS = []; // user's active portfolio — built from CATALOG + Supabase holdings
 let PX = {};
 let snapshots = [];
+let dcaLog = [];
 
 // ── STORAGE ──────────────────────────────────────────────────
 async function saveHoldings() {
@@ -67,7 +71,6 @@ async function saveSnapshot() {
     const idx = snapshots.findIndex(s => s.date === date);
     if (idx >= 0) snapshots[idx] = entry;
     else { snapshots.push(entry); snapshots.sort((a, b) => a.date.localeCompare(b.date)); }
-    renderAnalytics();
   } catch(e) { console.warn('snapshot save', e); }
 }
 
@@ -184,7 +187,7 @@ async function authSubmit() {
         currentUser = data.user;
         try { await loadHoldings(); } catch(e) { console.error('data load:', e); }
         hideAuth();
-        renderPortfolio(); renderAnalytics();
+        renderPortfolio(); renderVault();
         if (!appStarted) { fetchAll(); setInterval(fetchAll, 5 * 60 * 1000); appStarted = true; }
       }
     }
@@ -205,7 +208,7 @@ async function signOut() {
 }
 
 // ── TAB NAVIGATION ────────────────────────────────────────────
-const TAB_TITLES = { portfolio: 'PORTFOLIO', analytics: 'ANALYTICS' };
+const TAB_TITLES = { portfolio: 'PORTFOLIO', vault: 'VAULT' };
 
 function switchTab(id, animate = true) {
   document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
@@ -268,7 +271,7 @@ async function fetchAll() {
   const t = new Date().toLocaleTimeString('sl-SI', { hour: '2-digit', minute: '2-digit' });
   setStatus(`updated ${t}`);
   renderPortfolio();
-  renderAnalytics();
+  renderVault();
   saveSnapshot();
 }
 
@@ -307,79 +310,163 @@ function renderPortfolio() {
   }).join('');
 }
 
-// ── ANALYTICS ────────────────────────────────────────────────
-const CAT_ORDER  = ['crypto','etf','fund','cash'];
-const CAT_LABELS = { crypto:'CRYPTO', etf:'ETF', fund:'FUND', cash:'CASH' };
+// ── VAULT / DCA LOG ──────────────────────────────────────────
+const PHASE1_TOTAL = 9702;
 
-function renderSparkline(elId, values) {
-  const el = document.getElementById(elId); if (!el) return;
-  const pts = (values || []).map(Number).filter(Number.isFinite);
-  if (pts.length < 2) { el.innerHTML = '<div class="news-loading">building history…</div>'; return; }
-  const w = 320, h = 70, pad = 4;
-  const min = Math.min(...pts), max = Math.max(...pts), span = max - min || 1;
-  const step = (w - pad * 2) / (pts.length - 1);
-  const points = pts.map((v, i) => [pad + i * step, pad + (h - pad * 2) * (1 - (v - min) / span)]);
-  const line = points.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
-  const area = `M ${points[0][0].toFixed(1)} ${h - pad} L ${points.map(([x,y]) => `${x.toFixed(1)} ${y.toFixed(1)}`).join(' L ')} L ${points[points.length-1][0].toFixed(1)} ${h - pad} Z`;
-  const rising = pts[pts.length - 1] >= pts[0];
-  const stroke = rising ? 'rgba(140,255,170,0.92)' : 'rgba(255,100,100,0.92)';
-  const fill   = rising ? 'rgba(140,255,170,0.10)' : 'rgba(255,100,100,0.10)';
-  el.innerHTML = `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true">
-    <rect class="spark-bg" x="0" y="0" width="${w}" height="${h}" rx="8"></rect>
-    <path class="spark-area" d="${area}" style="fill:${fill}"></path>
-    <polyline class="spark-line" points="${line}" style="stroke:${stroke}"></polyline>
-  </svg>`;
+function taxFreeDate(dateStr) {
+  const d = new Date(dateStr);
+  d.setFullYear(d.getFullYear() + 15);
+  return d;
 }
 
-function renderAnalytics() {
-  const total = AS.reduce((s, a) => s + gV(a), 0);
+function countdown(dateStr) {
+  const target = taxFreeDate(dateStr);
+  const now    = new Date();
+  const diff   = target - now;
+  if (diff <= 0) return 'TAX FREE';
+  const days   = Math.floor(diff / 86400000);
+  const years  = Math.floor(days / 365.25);
+  const months = Math.floor((days % 365.25) / 30.44);
+  return years > 0 ? `${years}y ${months}m` : `${months}m`;
+}
 
-  // Net worth history chart
-  if (snapshots.length >= 2) {
-    renderSparkline('analyticsChart', snapshots.map(s => parseFloat(s.total_eur)));
+async function loadDcaLog() {
+  if (!currentUser) return;
+  try {
+    const { data, error } = await sb.from('dca_log')
+      .select('*')
+      .eq('user_id', currentUser.id)
+      .order('date', { ascending: true });
+    if (error) throw error;
+    dcaLog = data || [];
+  } catch(e) { console.warn('dca_log load', e); }
+}
+
+function renderVault() {
+  const phase1Lots     = dcaLog.filter(l => l.is_phase1);
+  const phase1Deployed = phase1Lots.reduce((s, l) => s + Number(l.amount_eur), 0);
+  const phase1Pct      = Math.min(phase1Deployed / PHASE1_TOTAL * 100, 100);
+
+  const fillEl = document.getElementById('vaultPhaseFill');
+  const metaEl = document.getElementById('vaultPhaseMeta');
+  if (fillEl) fillEl.style.width = phase1Pct.toFixed(1) + '%';
+  if (metaEl) {
+    const remaining = Math.max(0, PHASE1_TOTAL - phase1Deployed);
+    metaEl.textContent = phase1Deployed > 0
+      ? `${fe(phase1Deployed, 0)} of ${fe(PHASE1_TOTAL, 0)} · ${fe(remaining, 0)} remaining`
+      : `${fe(PHASE1_TOTAL, 0)} to deploy · Jun–Nov 2026`;
   }
 
-  // Allocation
-  const el = document.getElementById('allocList');
-  if (!el) return;
+  const totalInvested = dcaLog.reduce((s, l) => s + Number(l.amount_eur), 0);
+  const totalUnits    = dcaLog.reduce((s, l) => s + Number(l.units), 0);
+  const avgPrice      = totalUnits > 0 ? totalInvested / totalUnits : 0;
+  const currentPrice  = PX['vwce']?.p || 0;
+  const currentVal    = totalUnits * currentPrice;
+  const unrlz         = currentVal - totalInvested;
 
-  if (total <= 0) {
-    el.innerHTML = '<div class="portfolio-empty">set quantities in Portfolio to see allocation</div>';
+  const summEl = document.getElementById('vaultSummary');
+  if (summEl) {
+    if (!dcaLog.length) {
+      summEl.innerHTML = '';
+    } else {
+      const plClass = unrlz >= 0 ? 'up' : 'dn';
+      const plStr   = (unrlz >= 0 ? '+' : '') + fe(unrlz);
+      summEl.innerHTML = `<div class="vsumm-grid">
+        <div><div class="vsumm-label">invested</div><div class="vsumm-val">${fe(totalInvested, 0)}</div></div>
+        <div><div class="vsumm-label">units</div><div class="vsumm-val">${fn(totalUnits, 4)}</div></div>
+        <div><div class="vsumm-label">avg price</div><div class="vsumm-val">${fe(avgPrice)}</div></div>
+        ${currentVal > 0 ? `
+        <div><div class="vsumm-label">value</div><div class="vsumm-val">${fe(currentVal, 0)}</div></div>
+        <div><div class="vsumm-label">p/l</div><div class="vsumm-val ${plClass}">${plStr}</div></div>
+        <div></div>` : ''}
+      </div>`;
+    }
+  }
+
+  const lotEl = document.getElementById('lotList');
+  if (!lotEl) return;
+  if (!dcaLog.length) {
+    lotEl.innerHTML = '<div class="portfolio-empty">no purchases logged yet</div>';
     return;
   }
-
-  // By category
-  const byCat = {};
-  AS.forEach(a => { const v = gV(a); if (v > 0) byCat[a.cat] = (byCat[a.cat] || 0) + v; });
-
-  let html = '';
-  CAT_ORDER.forEach(cat => {
-    if (!byCat[cat]) return;
-    const pct = byCat[cat] / total * 100;
-    html += `<div class="alloc-row">
-      <div class="alloc-label">${CAT_LABELS[cat]}</div>
-      <div class="alloc-bar-track"><div class="alloc-bar-fill" style="width:${pct.toFixed(1)}%"></div></div>
-      <div class="alloc-pct">${pct.toFixed(1)}%</div>
-      <div class="alloc-val">${fe(byCat[cat])}</div>
+  lotEl.innerHTML = [...dcaLog].reverse().map(lot => {
+    const dateStr = new Date(lot.date + 'T00:00:00').toLocaleDateString('sl-SI', { day:'2-digit', month:'short', year:'numeric' });
+    const tfYear  = new Date(lot.date + 'T00:00:00').getFullYear() + 15;
+    const cd      = countdown(lot.date);
+    return `<div class="lot-row">
+      <div class="lot-left">
+        <div class="lot-date">${dateStr}</div>
+        <div class="lot-meta">${fn(lot.units, 4)} u · ${fe(lot.price_per_unit)}/u${lot.is_phase1 ? ' · p1' : ''}</div>
+      </div>
+      <div class="lot-right">
+        <div class="lot-amt">${fe(lot.amount_eur, 0)}</div>
+        <div class="lot-tf">${cd} · ${tfYear}</div>
+      </div>
+      <button class="lot-del" onclick="deleteLot(${lot.id})" title="delete">×</button>
     </div>`;
-  });
+  }).join('');
+}
 
-  // By asset
-  const withValue = AS.filter(a => gV(a) > 0).sort((a, b) => gV(b) - gV(a));
-  if (withValue.length > 1) {
-    html += '<div class="divider"></div>';
-    withValue.forEach(a => {
-      const v = gV(a), pct = v / total * 100;
-      html += `<div class="alloc-row">
-        <div class="alloc-label">${a.name}</div>
-        <div class="alloc-bar-track"><div class="alloc-bar-fill" style="width:${pct.toFixed(1)}%"></div></div>
-        <div class="alloc-pct">${pct.toFixed(1)}%</div>
-        <div class="alloc-val">${fe(v)}</div>
-      </div>`;
-    });
+function openLogBuy() {
+  document.getElementById('logDate').value   = new Date().toISOString().slice(0, 10);
+  document.getElementById('logAmount').value = '';
+  document.getElementById('logUnits').value  = '';
+  document.getElementById('logPrice').value  = PX['vwce']?.p?.toFixed(2) || '';
+  document.getElementById('logOv').classList.add('on');
+  setTimeout(() => document.getElementById('logAmount').focus(), 50);
+}
+
+function closeLogBuy() { document.getElementById('logOv').classList.remove('on'); }
+
+function logCalc(mode) {
+  const amount = parseFloat(document.getElementById('logAmount').value);
+  const units  = parseFloat(document.getElementById('logUnits').value);
+  const price  = parseFloat(document.getElementById('logPrice').value);
+  if (mode === 'price' && amount > 0 && units > 0) {
+    document.getElementById('logPrice').value = (amount / units).toFixed(4);
+  } else if (mode === 'units' && amount > 0 && price > 0) {
+    document.getElementById('logUnits').value = (amount / price).toFixed(4);
   }
+}
 
-  el.innerHTML = html;
+async function saveLogBuy() {
+  const date   = document.getElementById('logDate').value;
+  const amount = parseFloat(document.getElementById('logAmount').value);
+  const units  = parseFloat(document.getElementById('logUnits').value);
+  const price  = parseFloat(document.getElementById('logPrice').value);
+  if (!date || !(amount > 0) || !(units > 0)) return;
+  const pricePerUnit = price > 0 ? price : amount / units;
+  const d        = new Date(date + 'T00:00:00');
+  const isPhase1 = d.getFullYear() === 2026 && d.getMonth() >= 5 && d.getMonth() <= 10;
+
+  const btn = document.getElementById('logSaveBtn');
+  btn.textContent = '…'; btn.disabled = true;
+  try {
+    const { data, error } = await sb.from('dca_log').insert({
+      user_id: currentUser.id, asset_id: 'vwce',
+      date, amount_eur: amount, units, price_per_unit: pricePerUnit, is_phase1,
+    }).select().single();
+    if (error) throw error;
+    dcaLog.push(data);
+    dcaLog.sort((a, b) => a.date.localeCompare(b.date));
+    closeLogBuy();
+    renderVault();
+  } catch(e) {
+    console.error('log buy', e);
+    alert('Failed to save — make sure the dca_log table exists in Supabase.\n\n' + e.message);
+  } finally {
+    btn.textContent = 'save'; btn.disabled = false;
+  }
+}
+
+async function deleteLot(id) {
+  if (!confirm('Delete this purchase entry?')) return;
+  try {
+    const { error } = await sb.from('dca_log').delete().eq('id', id).eq('user_id', currentUser.id);
+    if (error) throw error;
+    dcaLog = dcaLog.filter(l => l.id !== id);
+    renderVault();
+  } catch(e) { console.error('delete lot', e); alert(e.message); }
 }
 
 // ── ADD ASSET PICKER ─────────────────────────────────────────
@@ -459,14 +546,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && currentUser) {
       hideAuth();
-      renderPortfolio(); renderAnalytics();
+      renderPortfolio(); renderVault();
       if (!appStarted) {
         fetchAll();
         setInterval(fetchAll, 5 * 60 * 1000);
         appStarted = true;
       }
       loadHoldings()
-        .then(async () => { renderPortfolio(); await loadSnapshots(); renderAnalytics(); })
+        .then(async () => { renderPortfolio(); await loadSnapshots(); await loadDcaLog(); renderVault(); })
         .catch(e => console.error('[NYX] data load failed:', e));
     } else if (event === 'SIGNED_OUT' || (event === 'INITIAL_SESSION' && !currentUser)) {
       appStarted = false;
@@ -476,6 +563,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('ov')?.addEventListener('click',    e => { if (e.target === e.currentTarget) closeM(); });
   document.getElementById('addOv')?.addEventListener('click', e => { if (e.target === e.currentTarget) closeAddAsset(); });
+  document.getElementById('logOv')?.addEventListener('click', e => { if (e.target === e.currentTarget) closeLogBuy(); });
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') closeM();
     if (e.key === 'Enter' && document.getElementById('authOverlay').style.display !== 'none') authSubmit();
