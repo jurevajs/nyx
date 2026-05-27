@@ -342,6 +342,10 @@ body {
 .vsumm-val.up { color: var(--up); }
 .vsumm-val.dn { color: var(--dn); }
 
+.vault-asset-sum { margin-bottom: 20px; }
+.vault-asset-sum:last-child { margin-bottom: 0; }
+.vault-asset-sum .label { margin-bottom: 10px; }
+
 .lot-asset-label {
   font-size: 10px;
   font-weight: 500;

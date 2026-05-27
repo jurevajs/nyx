@@ -362,29 +362,35 @@ function renderVault() {
       : `${fe(PHASE1_TOTAL, 0)} to deploy · Jun–Nov 2026`;
   }
 
-  const totalInvested = dcaLog.reduce((s, l) => s + Number(l.amount_eur), 0);
-  const totalUnits    = dcaLog.reduce((s, l) => s + Number(l.units), 0);
-  const avgPrice      = totalUnits > 0 ? totalInvested / totalUnits : 0;
-  const currentPrice  = PX['vwce']?.p || 0;
-  const currentVal    = totalUnits * currentPrice;
-  const unrlz         = currentVal - totalInvested;
-
   const summEl = document.getElementById('vaultSummary');
   if (summEl) {
     if (!dcaLog.length) {
       summEl.innerHTML = '';
     } else {
-      const plClass = unrlz >= 0 ? 'up' : 'dn';
-      const plStr   = (unrlz >= 0 ? '+' : '') + fe(unrlz);
-      summEl.innerHTML = `<div class="vsumm-grid">
-        <div><div class="vsumm-label">invested</div><div class="vsumm-val">${fe(totalInvested, 0)}</div></div>
-        <div><div class="vsumm-label">units</div><div class="vsumm-val">${fn(totalUnits, 4)}</div></div>
-        <div><div class="vsumm-label">avg price</div><div class="vsumm-val">${fe(avgPrice)}</div></div>
-        ${currentVal > 0 ? `
-        <div><div class="vsumm-label">value</div><div class="vsumm-val">${fe(currentVal, 0)}</div></div>
-        <div><div class="vsumm-label">p/l</div><div class="vsumm-val ${plClass}">${plStr}</div></div>
-        <div></div>` : ''}
-      </div>`;
+      let html = '';
+      VAULT_ASSETS.forEach(va => {
+        const lots = dcaLog.filter(l => l.asset_id === va.id);
+        if (!lots.length) return;
+        const invested = lots.reduce((s, l) => s + Number(l.amount_eur), 0);
+        const units    = lots.reduce((s, l) => s + Number(l.units), 0);
+        const avgPrice = units > 0 ? invested / units : 0;
+        const currVal  = units * (PX[va.id]?.p || 0);
+        const pl       = currVal > 0 ? currVal - invested : null;
+        const plClass  = pl !== null ? (pl >= 0 ? 'up' : 'dn') : '';
+        const plStr    = pl !== null ? (pl >= 0 ? '+' : '') + fe(pl) : '—';
+        html += `<div class="vault-asset-sum">
+          <div class="label">${va.name.toUpperCase()}</div>
+          <div class="vsumm-grid">
+            <div><div class="vsumm-label">invested</div><div class="vsumm-val">${fe(invested, 0)}</div></div>
+            <div><div class="vsumm-label">units</div><div class="vsumm-val">${fn(units, 4)}</div></div>
+            <div><div class="vsumm-label">avg price</div><div class="vsumm-val">${fe(avgPrice)}</div></div>
+            <div><div class="vsumm-label">value</div><div class="vsumm-val">${currVal > 0 ? fe(currVal, 0) : '—'}</div></div>
+            <div><div class="vsumm-label">p/l</div><div class="vsumm-val ${plClass}">${plStr}</div></div>
+            <div></div>
+          </div>
+        </div>`;
+      });
+      summEl.innerHTML = html;
     }
   }
 
