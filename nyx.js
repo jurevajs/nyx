@@ -409,8 +409,9 @@ function openLotModal(assetId) {
     </div>`;
   }).join('');
   // Fee analysis for active funds
-  const va = VAULT_ASSETS.find(v => v.id === assetId);
-  if (va && va.ter > 0.0019 && lots.length) {
+  const vaFee = VAULT_ASSETS.find(v => v.id === assetId);
+  if (vaFee && vaFee.ter > 0.0019 && lots.length) {
+    const va = vaFee;
     const invested  = lots.reduce((s, l) => s + Number(l.amount_eur), 0);
     const units     = lots.reduce((s, l) => s + Number(l.units), 0);
     const currVal   = units * (PX[assetId]?.p || 0);
