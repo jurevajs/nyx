@@ -409,34 +409,31 @@ function openLotModal(assetId) {
     </div>`;
   }).join('');
   // Fee analysis for active funds
-  const vaFee = VAULT_ASSETS.find(v => v.id === assetId);
-  if (vaFee && vaFee.ter > 0.0019 && lots.length) {
-    const va = vaFee;
-    const invested  = lots.reduce((s, l) => s + Number(l.amount_eur), 0);
-    const units     = lots.reduce((s, l) => s + Number(l.units), 0);
-    const currVal   = units * (PX[assetId]?.p || 0);
-    const firstDate = new Date(lots[lots.length - 1].date + 'T00:00:00');
-    const yearsHeld = (Date.now() - firstDate) / 31557600000;
-    const avgVal    = (invested + (currVal || invested)) / 2;
-    const feesPaid  = avgVal * va.ter * yearsHeld;
-    const vwceFees  = avgVal * 0.0019 * yearsHeld;
-    const feeDrag   = feesPaid - vwceFees;
-    const annualDrag = (currVal || invested) * (va.ter - 0.0019);
-    const gain      = currVal > 0 ? currVal - invested : 0;
-    const taxCost   = gain > 0 ? gain * 0.25 : 0;
-    const breakEven = annualDrag > 0 && taxCost > 0 ? taxCost / annualDrag : null;
+  if (va && va.ter > 0.0019 && lots.length) {
+    const fInvested  = lots.reduce((s, l) => s + Number(l.amount_eur), 0);
+    const fUnits     = lots.reduce((s, l) => s + Number(l.units), 0);
+    const fCurrVal   = fUnits * (PX[assetId]?.p || 0);
+    const fFirstDate = new Date(lots[lots.length - 1].date + 'T00:00:00');
+    const fYears     = (Date.now() - fFirstDate) / 31557600000;
+    const fAvgVal    = (fInvested + (fCurrVal || fInvested)) / 2;
+    const fFeesPaid  = fAvgVal * va.ter * fYears;
+    const fVwceFees  = fAvgVal * 0.0019 * fYears;
+    const fDrag      = fFeesPaid - fVwceFees;
+    const fAnnual    = (fCurrVal || fInvested) * (va.ter - 0.0019);
+    const fGain      = fCurrVal > 0 ? fCurrVal - fInvested : 0;
+    const fTax       = fGain > 0 ? fGain * 0.25 : 0;
+    const fBreak     = fAnnual > 0 && fTax > 0 ? fTax / fAnnual : null;
 
-    listEl.innerHTML += `<div class="fee-analysis">
-      <div class="label" style="margin:20px 0 12px">FEE ANALYSIS · ${(va.ter*100).toFixed(2)}% TER</div>
-      <div class="vsumm-grid">
-        <div><div class="vsumm-label">fees paid est.</div><div class="vsumm-val dn">~${fe(feesPaid, 0)}</div></div>
-        <div><div class="vsumm-label">vs vwce</div><div class="vsumm-val dn">~${fe(vwceFees, 0)}</div></div>
-        <div><div class="vsumm-label">drag</div><div class="vsumm-val dn">~${fe(feeDrag, 0)}</div></div>
-        <div><div class="vsumm-label">annual drag</div><div class="vsumm-val dn">~${fe(annualDrag, 0)}/yr</div></div>
-        <div><div class="vsumm-label">exit tax</div><div class="vsumm-val">${taxCost > 0 ? fe(taxCost, 0) : '—'}</div></div>
-        <div><div class="vsumm-label">break-even</div><div class="vsumm-val ${breakEven && breakEven < 4 ? 'dn' : ''}">${breakEven ? breakEven.toFixed(1) + 'y' : '—'}</div></div>
-      </div>
-    </div>`;
+    listEl.innerHTML += '<div class="fee-analysis">'
+      + '<div class="label" style="margin:20px 0 12px">FEE ANALYSIS · ' + (va.ter * 100).toFixed(2) + '% TER</div>'
+      + '<div class="vsumm-grid">'
+      + '<div><div class="vsumm-label">fees paid est.</div><div class="vsumm-val dn">~' + fe(fFeesPaid, 0) + '</div></div>'
+      + '<div><div class="vsumm-label">vs vwce</div><div class="vsumm-val dn">~' + fe(fVwceFees, 0) + '</div></div>'
+      + '<div><div class="vsumm-label">drag</div><div class="vsumm-val dn">~' + fe(fDrag, 0) + '</div></div>'
+      + '<div><div class="vsumm-label">annual drag</div><div class="vsumm-val dn">~' + fe(fAnnual, 0) + '/yr</div></div>'
+      + '<div><div class="vsumm-label">exit tax</div><div class="vsumm-val">' + (fTax > 0 ? fe(fTax, 0) : '—') + '</div></div>'
+      + '<div><div class="vsumm-label">break-even</div><div class="vsumm-val' + (fBreak && fBreak < 4 ? ' dn' : '') + '">' + (fBreak ? fBreak.toFixed(1) + 'y' : '—') + '</div></div>'
+      + '</div></div>';
   }
 
   document.getElementById('lotOv').classList.add('on');
