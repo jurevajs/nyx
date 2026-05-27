@@ -27,6 +27,7 @@ let AS = []; // user's active portfolio — built from CATALOG + Supabase holdin
 let PX = {};
 let snapshots = [];
 let dcaLog = [];
+let expandedAsset = null;
 
 // ── STORAGE ──────────────────────────────────────────────────
 async function saveHoldings() {
@@ -347,82 +348,79 @@ async function loadDcaLog() {
   } catch(e) { console.warn('dca_log load', e); }
 }
 
+function toggleVaultAsset(id) {
+  expandedAsset = expandedAsset === id ? null : id;
+  renderVault();
+}
+
 function renderVault() {
-  const phase1Lots     = dcaLog.filter(l => l.is_phase1);
-  const phase1Deployed = phase1Lots.reduce((s, l) => s + Number(l.amount_eur), 0);
-  const phase1Pct      = Math.min(phase1Deployed / PHASE1_TOTAL * 100, 100);
+  const el = document.getElementById('vaultContent');
+  if (!el) return;
 
-  const fillEl = document.getElementById('vaultPhaseFill');
-  const metaEl = document.getElementById('vaultPhaseMeta');
-  if (fillEl) fillEl.style.width = phase1Pct.toFixed(1) + '%';
-  if (metaEl) {
-    const remaining = Math.max(0, PHASE1_TOTAL - phase1Deployed);
-    metaEl.textContent = phase1Deployed > 0
-      ? `${fe(phase1Deployed, 0)} of ${fe(PHASE1_TOTAL, 0)} · ${fe(remaining, 0)} remaining`
-      : `${fe(PHASE1_TOTAL, 0)} to deploy · Jun–Nov 2026`;
-  }
-
-  const summEl = document.getElementById('vaultSummary');
-  if (summEl) {
-    if (!dcaLog.length) {
-      summEl.innerHTML = '';
-    } else {
-      let html = '';
-      VAULT_ASSETS.forEach(va => {
-        const lots = dcaLog.filter(l => l.asset_id === va.id);
-        if (!lots.length) return;
-        const invested = lots.reduce((s, l) => s + Number(l.amount_eur), 0);
-        const units    = lots.reduce((s, l) => s + Number(l.units), 0);
-        const avgPrice = units > 0 ? invested / units : 0;
-        const currVal  = units * (PX[va.id]?.p || 0);
-        const pl       = currVal > 0 ? currVal - invested : null;
-        const plClass  = pl !== null ? (pl >= 0 ? 'up' : 'dn') : '';
-        const plStr    = pl !== null ? (pl >= 0 ? '+' : '') + fe(pl) : '—';
-        html += `<div class="vault-asset-sum">
-          <div class="label">${va.name.toUpperCase()}</div>
-          <div class="vsumm-grid">
-            <div><div class="vsumm-label">invested</div><div class="vsumm-val">${fe(invested, 0)}</div></div>
-            <div><div class="vsumm-label">units</div><div class="vsumm-val">${fn(units, 4)}</div></div>
-            <div><div class="vsumm-label">avg price</div><div class="vsumm-val">${fe(avgPrice)}</div></div>
-            <div><div class="vsumm-label">value</div><div class="vsumm-val">${currVal > 0 ? fe(currVal, 0) : '—'}</div></div>
-            <div><div class="vsumm-label">p/l</div><div class="vsumm-val ${plClass}">${plStr}</div></div>
-            <div></div>
-          </div>
-        </div>`;
-      });
-      summEl.innerHTML = html;
-    }
-  }
-
-  const lotEl = document.getElementById('lotList');
-  if (!lotEl) return;
   if (!dcaLog.length) {
-    lotEl.innerHTML = '<div class="portfolio-empty">no purchases logged yet</div>';
+    el.innerHTML = '<div class="portfolio-empty">no purchases logged yet</div>';
     return;
   }
-  let lotsHtml = '';
+
+  let html = '';
   VAULT_ASSETS.forEach(va => {
-    const lots = [...dcaLog].filter(l => l.asset_id === va.id).reverse();
+    const lots = dcaLog.filter(l => l.asset_id === va.id);
     if (!lots.length) return;
-    lotsHtml += `<div class="lot-asset-label">${va.name.toUpperCase()}</div>`;
-    lotsHtml += lots.map(lot => {
-      const dateStr = new Date(lot.date + 'T00:00:00').toLocaleDateString('sl-SI', { day:'2-digit', month:'short', year:'numeric' });
-      const tfYear  = new Date(lot.date + 'T00:00:00').getFullYear() + 15;
-      const cd      = countdown(lot.date);
-      return `<div class="lot-row">
-        <div class="lot-left">
-          <div class="lot-date">${dateStr}</div>
-          <div class="lot-meta">${fn(lot.units, 4)} u · ${fe(lot.price_per_unit)}/u${lot.is_phase1 ? ' · p1' : ''}</div>
+
+    const invested = lots.reduce((s, l) => s + Number(l.amount_eur), 0);
+    const units    = lots.reduce((s, l) => s + Number(l.units), 0);
+    const avgPrice = units > 0 ? invested / units : 0;
+    const currPx   = PX[va.id]?.p || 0;
+    const currVal  = units * currPx;
+    const pl       = currVal > 0 ? currVal - invested : null;
+    const plClass  = pl !== null ? (pl >= 0 ? 'up' : 'dn') : 'fl';
+    const plStr    = pl !== null ? (pl >= 0 ? '+' : '') + fe(pl) : '—';
+    const isExp    = expandedAsset === va.id;
+
+    html += `<div class="vault-card${isExp ? ' expanded' : ''}" onclick="toggleVaultAsset('${va.id}')">
+      <div class="vault-card-head">
+        <div>
+          <div class="a-name">${va.name}</div>
+          <div class="a-sub">${va.sub}</div>
         </div>
-        <div class="lot-right">
-          <div class="lot-amt">${fe(lot.amount_eur, 0)}</div>
-          <div class="lot-tf">${cd} · ${tfYear}</div>
+        <div class="vault-card-right">
+          <div class="a-val">${currVal > 0 ? fe(currVal, 0) : fe(invested, 0)}</div>
+          <div class="a-ch ${plClass}">${plStr}</div>
         </div>
-        <button class="lot-del" onclick="deleteLot(${lot.id})" title="delete">×</button>
       </div>`;
-    }).join('');
+
+    if (isExp) {
+      html += `<div class="vault-detail" onclick="event.stopPropagation()">
+        <div class="vsumm-grid">
+          <div><div class="vsumm-label">invested</div><div class="vsumm-val">${fe(invested, 0)}</div></div>
+          <div><div class="vsumm-label">units</div><div class="vsumm-val">${fn(units, 4)}</div></div>
+          <div><div class="vsumm-label">avg price</div><div class="vsumm-val">${fe(avgPrice)}</div></div>
+        </div>`;
+
+      [...lots].reverse().forEach(lot => {
+        const dateStr = new Date(lot.date + 'T00:00:00').toLocaleDateString('sl-SI', { day:'2-digit', month:'short', year:'numeric' });
+        const tfYear  = new Date(lot.date + 'T00:00:00').getFullYear() + 15;
+        const cd      = countdown(lot.date);
+        html += `<div class="lot-row">
+          <div class="lot-left">
+            <div class="lot-date">${dateStr}</div>
+            <div class="lot-meta">${fn(lot.units, 4)} u · ${fe(lot.price_per_unit)}/u</div>
+          </div>
+          <div class="lot-right">
+            <div class="lot-amt">${fe(lot.amount_eur, 0)}</div>
+            <div class="lot-tf">${cd} · ${tfYear}</div>
+          </div>
+          <button class="lot-del" onclick="deleteLot(${lot.id})" title="delete">×</button>
+        </div>`;
+      });
+
+      html += `</div>`;
+    }
+
+    html += `</div>`;
   });
-  lotEl.innerHTML = lotsHtml;
+
+  el.innerHTML = html;
 }
 
 function openLogBuy() {
