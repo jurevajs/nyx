@@ -466,7 +466,7 @@ async function saveLogBuy() {
   try {
     const { data, error } = await sb.from('dca_log').insert({
       user_id: currentUser.id, asset_id: assetId,
-      date, amount_eur: amount, units, price_per_unit: pricePerUnit, is_phase1,
+      date, amount_eur: amount, units, price_per_unit: pricePerUnit, is_phase1: isPhase1,
     }).select().single();
     if (error) throw error;
     dcaLog.push(data);
