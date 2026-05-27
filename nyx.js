@@ -8,20 +8,10 @@ let currentUser = null;
 // ── CATALOG ───────────────────────────────────────────────────
 const CATALOG = [
   // Crypto — prices via CoinGecko EUR
-  { id:'btc',  name:'Bitcoin',          sub:'BTC',                cat:'crypto', src:'cg', cgId:'bitcoin'       },
-  { id:'eth',  name:'Ethereum',         sub:'ETH',                cat:'crypto', src:'cg', cgId:'ethereum'      },
-  { id:'sol',  name:'Solana',           sub:'SOL',                cat:'crypto', src:'cg', cgId:'solana'        },
-  { id:'bnb',  name:'BNB',              sub:'BNB',                cat:'crypto', src:'cg', cgId:'binancecoin'   },
-  { id:'xrp',  name:'XRP',              sub:'XRP',                cat:'crypto', src:'cg', cgId:'ripple'        },
-  { id:'ada',  name:'Cardano',          sub:'ADA',                cat:'crypto', src:'cg', cgId:'cardano'       },
-  { id:'avax', name:'Avalanche',        sub:'AVAX',               cat:'crypto', src:'cg', cgId:'avalanche-2'   },
-  { id:'dot',  name:'Polkadot',         sub:'DOT',                cat:'crypto', src:'cg', cgId:'polkadot'      },
-  { id:'link', name:'Chainlink',        sub:'LINK',               cat:'crypto', src:'cg', cgId:'chainlink'     },
-  { id:'pol',  name:'Polygon',          sub:'POL',                cat:'crypto', src:'cg', cgId:'matic-network' },
+  { id:'eth',  name:'Ethereum',         sub:'ETH',                cat:'crypto', src:'cg', cgId:'ethereum' },
+  { id:'link', name:'Chainlink',        sub:'LINK',               cat:'crypto', src:'cg', cgId:'chainlink' },
   // ETFs — prices via GitHub Actions → data/funds.json (Yahoo Finance EOD)
   { id:'vwce', name:'VWCE',             sub:'FTSE All-World',     cat:'etf',   src:'fund' },
-  // Slovenian stocks — prices via GitHub Actions → data/funds.json (LJSE API)
-  { id:'krkg', name:'Krka d.d.',        sub:'KRKG.LJ',            cat:'stock', src:'fund' },
   // Slovenian mutual funds — prices via GitHub Actions → data/funds.json
   { id:'tri',  name:'Triglav DMT EUR',  sub:'Triglav Investments', cat:'fund', src:'fund' },
   { id:'inf',  name:'Infond Globalni',  sub:'Infond',              cat:'fund', src:'fund' },

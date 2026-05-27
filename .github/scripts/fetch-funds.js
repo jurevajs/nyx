@@ -22,10 +22,7 @@ const YAHOO_ASSETS = [
 ];
 
 // ── Slovenian stocks via LJSE REST API ────────────────────────
-// One API call fetches all LJSE securities — add symbols here freely
-const LJSE_STOCKS = [
-  { id: 'krkg', symbol: 'KRKG' },
-];
+const LJSE_STOCKS = [];
 
 // ─────────────────────────────────────────────────────────────
 
