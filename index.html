@@ -63,6 +63,14 @@
 
       <!-- TAB: VAULT -->
       <div class="tab-pane" id="tab-vault">
+        <div class="exemption-section" onclick="openGainModal()">
+          <div class="exemption-row">
+            <div class="label" id="exemptionYear">2026 EXEMPTION</div>
+            <div class="exemption-amt" id="exemptionAmt">0€ used</div>
+          </div>
+          <div class="exm-bar-track"><div class="exm-bar-fill" id="exemptionFill" style="width:0%"></div></div>
+        </div>
+        <div class="divider"></div>
         <div id="vaultContent"></div>
         <button class="vault-log-btn" onclick="openLogBuy()">+ log purchase</button>
       </div>
@@ -94,6 +102,31 @@
     <div class="add-asset-list" id="catalogList"></div>
     <div class="modal-btns" style="margin-top:14px">
       <button class="btn" onclick="closeAddAsset()">close</button>
+    </div>
+  </div>
+</div>
+
+<!-- REALIZED GAIN MODAL -->
+<div class="overlay" id="gainOv">
+  <div class="modal">
+    <div class="modal-title" id="gainOvTitle">REALIZED GAINS 2026</div>
+    <div id="gainList"></div>
+    <div class="divider" style="margin:16px 0 12px"></div>
+    <div class="field">
+      <label>DATE</label>
+      <input type="date" id="gainDate">
+    </div>
+    <div class="field">
+      <label>DESCRIPTION</label>
+      <input type="text" id="gainNote" placeholder="e.g. Triglav DMT EUR">
+    </div>
+    <div class="field">
+      <label>GAIN (€)</label>
+      <input type="number" id="gainAmt" step="any" min="0" placeholder="0.00">
+    </div>
+    <div class="modal-btns">
+      <button class="btn" onclick="closeGainModal()">close</button>
+      <button class="btn primary" id="gainSaveBtn" onclick="saveGain()">log</button>
     </div>
   </div>
 </div>

@@ -310,6 +310,17 @@ body {
 .aa-plus { font-size: 18px; font-weight: 300; color: var(--text-faint); padding-left: 14px; line-height: 1; }
 
 /* ── VAULT ── */
+/* ── EXEMPTION BAR ── */
+.exemption-section { cursor: pointer; transition: opacity 0.15s; }
+.exemption-section:hover { opacity: 0.6; }
+.exemption-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.exemption-amt { font-size: 11px; font-weight: 500; color: var(--text); }
+.exm-bar-track { height: 2px; background: #1a1a1a; border-radius: 2px; overflow: hidden; }
+.exm-bar-fill  { height: 100%; background: #fff; border-radius: 2px; transition: width 0.8s cubic-bezier(0.16,1,0.3,1); }
+.exm-bar-fill.warn { background: #febc2e; }
+.exm-bar-fill.over { background: var(--dn); }
+.gain-total { font-size: 10px; color: var(--text-faint); padding-top: 10px; text-align: right; }
+
 .vault-card {
   padding: 16px 0;
   border-top: 1px solid #111;

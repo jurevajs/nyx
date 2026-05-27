@@ -490,6 +490,103 @@ async function deleteLot(id, assetId) {
   } catch(e) { console.error('delete lot', e); alert(e.message); }
 }
 
+// ── REALIZED GAINS / €1,000 EXEMPTION ────────────────────────
+let realizedGains = [];
+
+async function loadRealizedGains() {
+  if (!currentUser) return;
+  try {
+    const year = new Date().getFullYear();
+    const { data, error } = await sb.from('realized_gains')
+      .select('*')
+      .eq('user_id', currentUser.id)
+      .gte('date', `${year}-01-01`)
+      .lte('date', `${year}-12-31`)
+      .order('date', { ascending: true });
+    if (error) throw error;
+    realizedGains = data || [];
+  } catch(e) { console.warn('realized_gains load', e); }
+}
+
+function renderExemptionBar() {
+  const year  = new Date().getFullYear();
+  const used  = realizedGains.reduce((s, g) => s + Number(g.gain_eur), 0);
+  const pct   = Math.min(used / 1000 * 100, 100);
+  const amtEl = document.getElementById('exemptionAmt');
+  const fillEl = document.getElementById('exemptionFill');
+  const yrEl  = document.getElementById('exemptionYear');
+  if (yrEl)  yrEl.textContent  = year + ' EXEMPTION';
+  if (amtEl) amtEl.textContent = used > 0 ? `${fe(used)} of 1.000€` : '0€ used';
+  if (fillEl) {
+    fillEl.style.width = pct + '%';
+    fillEl.className = 'exm-bar-fill' + (used >= 1000 ? ' over' : used >= 800 ? ' warn' : '');
+  }
+}
+
+function openGainModal() {
+  const year = new Date().getFullYear();
+  document.getElementById('gainOvTitle').textContent = `REALIZED GAINS ${year}`;
+  document.getElementById('gainDate').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('gainNote').value = '';
+  document.getElementById('gainAmt').value  = '';
+  const listEl = document.getElementById('gainList');
+  if (!realizedGains.length) {
+    listEl.innerHTML = '<div class="portfolio-empty" style="padding:0 0 4px">no gains logged this year</div>';
+  } else {
+    const total = realizedGains.reduce((s, g) => s + Number(g.gain_eur), 0);
+    listEl.innerHTML = realizedGains.map(g => {
+      const dateStr = new Date(g.date + 'T00:00:00').toLocaleDateString('sl-SI', { day:'2-digit', month:'short' });
+      return `<div class="lot-row">
+        <div class="lot-left">
+          <div class="lot-date">${dateStr}</div>
+          <div class="lot-meta">${g.note || '—'}</div>
+        </div>
+        <div class="lot-right">
+          <div class="lot-amt up">+${fe(g.gain_eur)}</div>
+        </div>
+        <button class="lot-del" onclick="deleteGain(${g.id})" title="delete">×</button>
+      </div>`;
+    }).join('') + `<div class="gain-total">total ${fe(total)} of 1.000€</div>`;
+  }
+  document.getElementById('gainOv').classList.add('on');
+  setTimeout(() => document.getElementById('gainAmt').focus(), 50);
+}
+
+function closeGainModal() { document.getElementById('gainOv').classList.remove('on'); }
+
+async function saveGain() {
+  const date = document.getElementById('gainDate').value;
+  const note = document.getElementById('gainNote').value.trim();
+  const gain = parseFloat(document.getElementById('gainAmt').value);
+  if (!date || !(gain > 0)) return;
+  const btn = document.getElementById('gainSaveBtn');
+  btn.textContent = '…'; btn.disabled = true;
+  try {
+    const { data, error } = await sb.from('realized_gains').insert({
+      user_id: currentUser.id, date, gain_eur: gain, note: note || null,
+    }).select().single();
+    if (error) throw error;
+    realizedGains.push(data);
+    realizedGains.sort((a, b) => a.date.localeCompare(b.date));
+    renderExemptionBar();
+    openGainModal();
+  } catch(e) {
+    console.error('save gain', e);
+    alert('Failed to save — run the realized_gains SQL in Supabase.\n\n' + e.message);
+  } finally { btn.textContent = 'log'; btn.disabled = false; }
+}
+
+async function deleteGain(id) {
+  if (!confirm('Delete this entry?')) return;
+  try {
+    const { error } = await sb.from('realized_gains').delete().eq('id', id).eq('user_id', currentUser.id);
+    if (error) throw error;
+    realizedGains = realizedGains.filter(g => g.id !== id);
+    renderExemptionBar();
+    openGainModal();
+  } catch(e) { console.error('delete gain', e); alert(e.message); }
+}
+
 // ── ADD ASSET PICKER ─────────────────────────────────────────
 function openAddAsset() {
   renderAssetCatalog('');
@@ -574,7 +671,7 @@ document.addEventListener('DOMContentLoaded', () => {
         appStarted = true;
       }
       loadHoldings()
-        .then(async () => { renderPortfolio(); await loadSnapshots(); await loadDcaLog(); renderVault(); })
+        .then(async () => { renderPortfolio(); await loadSnapshots(); await loadDcaLog(); await loadRealizedGains(); renderVault(); renderExemptionBar(); })
         .catch(e => console.error('[NYX] data load failed:', e));
     } else if (event === 'SIGNED_OUT' || (event === 'INITIAL_SESSION' && !currentUser)) {
       appStarted = false;
@@ -585,7 +682,8 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('ov')?.addEventListener('click',    e => { if (e.target === e.currentTarget) closeM(); });
   document.getElementById('addOv')?.addEventListener('click', e => { if (e.target === e.currentTarget) closeAddAsset(); });
   document.getElementById('logOv')?.addEventListener('click', e => { if (e.target === e.currentTarget) closeLogBuy(); });
-  document.getElementById('lotOv')?.addEventListener('click', e => { if (e.target === e.currentTarget) closeLotModal(); });
+  document.getElementById('lotOv')?.addEventListener('click',  e => { if (e.target === e.currentTarget) closeLotModal(); });
+  document.getElementById('gainOv')?.addEventListener('click', e => { if (e.target === e.currentTarget) closeGainModal(); });
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') closeM();
     if (e.key === 'Enter' && document.getElementById('authOverlay').style.display !== 'none') authSubmit();
